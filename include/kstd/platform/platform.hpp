@@ -57,9 +57,7 @@
 
 namespace kstd::platform {
     enum class Platform : u8 {
-        WINDOWS,
-        LINUX,
-        MACOS
+        WINDOWS, LINUX, MACOS
     };
 
     [[nodiscard]] inline auto get_platform() noexcept -> Platform {

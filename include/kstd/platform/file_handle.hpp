@@ -27,11 +27,11 @@ namespace kstd::platform {
 
         public:
 
-        explicit FileHandle(KSTD_FILE_HANDLE_TYPE value) noexcept:
+        explicit FileHandle(KSTD_FILE_HANDLE_TYPE value) noexcept :
                 _value(value) {
         }
 
-        FileHandle() noexcept:
+        FileHandle() noexcept :
                 _value(KSTD_INVALID_FILE_HANDLE) {
         }
 

@@ -22,13 +22,15 @@
 #ifdef PLATFORM_WINDOWS
     #include <libloaderapi.h>
 #else
+
     #include <dlfcn.h>
+
 #endif
 
 #include <fmt/format.h>
 
 namespace kstd::platform {
-    DynamicLib::DynamicLib(std::string name) noexcept:
+    DynamicLib::DynamicLib(std::string name) noexcept :
             _name(std::move(name)),
             _handle(nullptr) {
     }
@@ -45,7 +47,7 @@ namespace kstd::platform {
         _handle = ::dlopen(_name.c_str(), RTLD_LAZY);
 
         if (_handle == nullptr) {
-            return make_error<void>(fmt::format("Could not open shared object {}: {}", _name, platform::get_last_error()));
+            return make_error<void>(StringSlice(fmt::format("Could not open shared object {}: {}", _name, platform::get_last_error())));
         }
         #endif
 
@@ -59,7 +61,7 @@ namespace kstd::platform {
         }
         #else
         if (::dlclose(_handle) != 0) {
-            return make_error<void>(fmt::format("Could not close shared object {}: {}", _name, platform::get_last_error()));
+            return make_error<void>(StringSlice(fmt::format("Could not close shared object {}: {}", _name, platform::get_last_error())));
         }
         #endif
 
@@ -74,7 +76,7 @@ namespace kstd::platform {
         #endif
 
         if (address == nullptr) {
-            return make_error<void>(fmt::format("Could not resolve function {} in {}: {}", name, _name, platform::get_last_error()));
+            return make_error<void*>(StringSlice(fmt::format("Could not resolve function {} in {}: {}", name, _name, platform::get_last_error())));
         }
 
         return {reinterpret_cast<void*>(address)};

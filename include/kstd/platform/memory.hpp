@@ -51,7 +51,7 @@ namespace kstd::platform {
         #endif
     } // @formatter:on
 
-// @formatter:off
+    // @formatter:off
     template<typename T, typename... ARGS>
     [[nodiscard]] inline auto allocate(ARGS&& ... args) noexcept -> T* {
         static_assert(!std::is_void<T>::value, "Type must not be void");
@@ -70,7 +70,7 @@ namespace kstd::platform {
         #endif
     } // @formatter:on
 
-// @formatter:off
+    // @formatter:off
     inline auto free_aligned(void* memory) noexcept -> void {
         #ifdef PLATFORM_WINDOWS
         _aligned_free(memory);
@@ -79,7 +79,7 @@ namespace kstd::platform {
         #endif
     } // @formatter:on
 
-// @formatter:off
+    // @formatter:off
     template<typename T>
     inline auto free(T* memory) noexcept -> void {
         static_assert(!std::is_void<T>::value, "Type must not be void");
@@ -87,7 +87,7 @@ namespace kstd::platform {
         free_aligned(memory);
     } // @formatter:on
 
-// @formatter:off
+    // @formatter:off
     [[nodiscard]] inline auto realloc_aligned(void* memory, usize size, usize alignment) noexcept -> void* {
         #ifdef PLATFORM_WINDOWS
         return _aligned_realloc(memory, size, alignment);

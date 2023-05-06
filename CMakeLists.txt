@@ -24,5 +24,5 @@ target_include_fmt(${LIB_STATIC_TARGET})
 target_include_fmt(${LIB_SHARED_TARGET})
 target_include_fmt(${LIB_TEST_TARGET})
 
-lib_include_directories("${CMAKE_SOURCE_DIR}/kstd-concepts/include")
-lib_include_directories("${CMAKE_SOURCE_DIR}/kstd-types/include")
+lib_include_directories(PUBLIC "${CMAKE_SOURCE_DIR}/kstd-concepts/include")
+lib_include_directories(PUBLIC "${CMAKE_SOURCE_DIR}/kstd-types/include")
