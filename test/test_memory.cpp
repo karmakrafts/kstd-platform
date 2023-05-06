@@ -37,7 +37,7 @@ TEST(kstd_platform, TestReAllocAligned) {
     *memory = 1337;
     ASSERT_EQ(*memory, 1337);
 
-    memory = reinterpret_cast<kstd::i32*>(kstd::platform::realloc_aligned(memory, sizeof(kstd::i32) << 1, alignof(kstd::i32)));
+    memory = reinterpret_cast<kstd::i32*>(kstd::platform::realloc_aligned(memory, sizeof(kstd::i32) << 1, alignof(kstd::i32) << 1));
     ASSERT_TRUE(memory != nullptr);
 
     *memory = 444444;
