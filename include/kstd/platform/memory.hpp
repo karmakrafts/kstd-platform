@@ -93,7 +93,7 @@ namespace kstd::platform {
         return _aligned_realloc(memory, size, alignment);
         #else
         auto* new_memory = allocate_aligned(size, alignment);
-        std::memcpy(new_memory, memory, *reinterpret_cast<usize*>(memory));
+        std::memcpy(new_memory, memory, *reinterpret_cast<usize*>(reinterpret_cast<u8*>(memory) - sizeof(usize)));
         free_aligned(memory);
         return new_memory;
         #endif
