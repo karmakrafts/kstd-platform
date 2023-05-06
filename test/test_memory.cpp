@@ -21,7 +21,7 @@
 #include <kstd/platform/memory.hpp>
 
 TEST(kstd_platform, TestAllocAligned) {
-    auto* memory = reinterpret_cast<kstd::i32*>(kstd::platform::allocate_aligned(sizeof(kstd::i32), alignof(kstd::i32)));
+    auto* memory = reinterpret_cast<kstd::i32*>(kstd::platform::allocate_aligned(sizeof(kstd::i32), kstd::platform::get_min_alignment()));
     ASSERT_TRUE(memory != nullptr);
 
     *memory = 1337;
@@ -31,13 +31,13 @@ TEST(kstd_platform, TestAllocAligned) {
 }
 
 TEST(kstd_platform, TestReAllocAligned) {
-    auto* memory = reinterpret_cast<kstd::i32*>(kstd::platform::allocate_aligned(sizeof(kstd::i32), alignof(kstd::i32)));
+    auto* memory = reinterpret_cast<kstd::i32*>(kstd::platform::allocate_aligned(sizeof(kstd::i32), kstd::platform::get_min_alignment()));
     ASSERT_TRUE(memory != nullptr);
 
     *memory = 1337;
     ASSERT_EQ(*memory, 1337);
 
-    memory = reinterpret_cast<kstd::i32*>(kstd::platform::realloc_aligned(memory, sizeof(kstd::i32) << 1, alignof(kstd::i32) << 1));
+    memory = reinterpret_cast<kstd::i32*>(kstd::platform::realloc_aligned(memory, sizeof(kstd::i32) << 1, kstd::platform::get_min_alignment()));
     ASSERT_TRUE(memory != nullptr);
 
     *memory = 444444;

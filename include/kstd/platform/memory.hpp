@@ -41,11 +41,22 @@
 
 namespace kstd::platform {
     // @formatter:off
-    [[nodiscard]] inline auto allocate_aligned(usize size, usize alignment) noexcept -> void* {
-        #ifdef PLATFORM_WINDOWS
-        return _aligned_malloc(size, alignment);
+    [[nodiscard]] inline auto get_min_alignment() noexcept -> usize {
+        #ifdef PLATFORM_APPLE
+        return sizeof(void*) << 1;
         #else
-        auto* memory = aligned_alloc(alignment, size + sizeof(usize));
+        return sizeof(void*);
+        #endif
+    }
+    // @formatter:on
+
+    // @formatter:off
+    [[nodiscard]] inline auto allocate_aligned(usize size, usize alignment) noexcept -> void* {
+        const auto actual_alignment = std::max(get_min_alignment(), alignment);
+        #ifdef PLATFORM_WINDOWS
+        return _aligned_malloc(size, actual_alignment);
+        #else
+        auto* memory = aligned_alloc(actual_alignment, size + sizeof(usize));
         *reinterpret_cast<usize*>(memory) = size; // Store usable size before user data
         return reinterpret_cast<u8*>(memory) + sizeof(usize);
         #endif
@@ -55,7 +66,7 @@ namespace kstd::platform {
     template<typename T, typename... ARGS>
     [[nodiscard]] inline auto allocate(ARGS&& ... args) noexcept -> T* {
         static_assert(!std::is_void<T>::value, "Type must not be void");
-        constexpr auto alignment = alignof(T);
+        const auto alignment = std::max(get_min_alignment(), alignof(T));
         constexpr auto size = sizeof(T);
         #ifdef PLATFORM_WINDOWS
         auto* memory = reinterpret_cast<T*>(_aligned_malloc(size, alignment));
