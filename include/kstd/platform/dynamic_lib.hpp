@@ -19,9 +19,11 @@
 
 #pragma once
 
-#include "platform.hpp"
-#include "kstd/result.hpp"
+#include <kstd/defaults.hpp>
+#include <kstd/result.hpp>
 #include <string>
+
+#include "platform.hpp"
 
 namespace kstd::platform {
     class DynamicLib final {
@@ -31,6 +33,7 @@ namespace kstd::platform {
         [[nodiscard]] auto get_function_address(const std::string_view& name) noexcept -> Result<void*>;
 
         public:
+        KSTD_NO_MOVE_COPY(DynamicLib)
 
         explicit DynamicLib(std::string name) noexcept;
 
@@ -41,14 +44,14 @@ namespace kstd::platform {
         [[nodiscard]] auto unload() noexcept -> Result<void>;
 
         template<typename R, typename... ARGS>
-        [[nodiscard]] inline auto get_function(const std::string_view& name) noexcept -> Result<R(*)(ARGS...)> {
+        [[nodiscard]] inline auto get_function(const std::string_view& name) noexcept -> Result<R (*)(ARGS...)> {
             auto address_result = get_function_address(name);
 
-            if (!address_result) {
-                return address_result.forward_error<R(*)(ARGS...)>();
+            if(!address_result) {
+                return address_result.forward_error<R (*)(ARGS...)>();
             }
 
-            return {reinterpret_cast<R(*)(ARGS...)>(*address_result)};
+            return {reinterpret_cast<R (*)(ARGS...)>(*address_result)};// NOLINT
         }
 
         [[nodiscard]] inline auto get_name() const noexcept -> const std::string& {
@@ -63,4 +66,4 @@ namespace kstd::platform {
             return _handle;
         }
     };
-}
+}// namespace kstd::platform

@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <kstd/defaults.hpp>
+
 #include "platform.hpp"
 
 namespace kstd::platform {
@@ -26,6 +28,7 @@ namespace kstd::platform {
         KSTD_FILE_HANDLE_TYPE _value;
 
         public:
+        KSTD_DEFAULT_MOVE_COPY(FileHandle)
 
         explicit FileHandle(KSTD_FILE_HANDLE_TYPE value) noexcept :
                 _value(value) {
@@ -35,28 +38,26 @@ namespace kstd::platform {
                 _value(KSTD_INVALID_FILE_HANDLE) {
         }
 
-        FileHandle(const FileHandle& other) noexcept = default;
-
         ~FileHandle() noexcept = default;
 
-        [[nodiscard]] inline operator KSTD_FILE_HANDLE_TYPE() const noexcept { // NOLINT
+        [[nodiscard]] inline operator KSTD_FILE_HANDLE_TYPE() const noexcept {// NOLINT
             return _value;
         }
 
-        [[nodiscard]] inline auto operator ==(const FileHandle& other) const noexcept -> bool {
+        [[nodiscard]] inline auto operator==(const FileHandle& other) const noexcept -> bool {
             return _value == other._value;
         }
 
-        [[nodiscard]] inline auto operator !=(const FileHandle& other) const noexcept -> bool {
+        [[nodiscard]] inline auto operator!=(const FileHandle& other) const noexcept -> bool {
             return _value != other._value;
         }
 
         [[nodiscard]] inline auto is_valid() const noexcept -> bool {
-            #ifdef PLATFORM_WINDOWS
+#ifdef PLATFORM_WINDOWS
             return _value != nullptr && _value != INVALID_HANDLE_VALUE;
-            #else
+#else
             return _value != -1;
-            #endif
+#endif
         }
     };
-}
+}// namespace kstd::platform

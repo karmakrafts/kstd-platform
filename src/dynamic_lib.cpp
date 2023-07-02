@@ -20,10 +20,10 @@
 #include "kstd/platform/dynamic_lib.hpp"
 
 #ifdef PLATFORM_WINDOWS
-    #include <libloaderapi.h>
+#include <libloaderapi.h>
 #else
 
-    #include <dlfcn.h>
+#include <dlfcn.h>
 
 #endif
 
@@ -36,49 +36,52 @@ namespace kstd::platform {
     }
 
     auto DynamicLib::load() noexcept -> Result<void> {
-        #ifdef PLATFORM_WINDOWS
+#ifdef PLATFORM_WINDOWS
         const auto wide_name = util::to_utf16(_name);
         _handle = ::LoadLibraryW(wide_name.data());
 
         if(_handle == nullptr) {
             return {std::unexpected(fmt::format("Could not open DLL {}: {}", _name, platform::get_last_error()))};
         }
-        #else
+#else
         _handle = ::dlopen(_name.c_str(), RTLD_LAZY);
 
-        if (_handle == nullptr) {
-            return make_error<void>(StringSlice(fmt::format("Could not open shared object {}: {}", _name, platform::get_last_error())));
+        if(_handle == nullptr) {
+            return make_error<void>(std::string_view(
+                    fmt::format("Could not open shared object {}: {}", _name, platform::get_last_error())));
         }
-        #endif
+#endif
 
         return {};
     }
 
     auto DynamicLib::unload() noexcept -> Result<void> {
-        #ifdef PLATFORM_WINDOWS
+#ifdef PLATFORM_WINDOWS
         if(!::FreeLibrary(_handle)) {
             return {std::unexpected(fmt::format("Could not close DLL {}: {}", _name, platform::get_last_error()))};
         }
-        #else
-        if (::dlclose(_handle) != 0) {
-            return make_error<void>(StringSlice(fmt::format("Could not close shared object {}: {}", _name, platform::get_last_error())));
+#else
+        if(::dlclose(_handle) != 0) {
+            return make_error<void>(std::string_view(
+                    fmt::format("Could not close shared object {}: {}", _name, platform::get_last_error())));
         }
-        #endif
+#endif
 
         return {};
     }
 
     auto DynamicLib::get_function_address(const std::string_view& name) noexcept -> Result<void*> {
-        #ifdef PLATFORM_WINDOWS
+#ifdef PLATFORM_WINDOWS
         auto* address = ::GetProcAddress(_handle, name.data());
-        #else
+#else
         auto* address = ::dlsym(_handle, name.data());
-        #endif
+#endif
 
-        if (address == nullptr) {
-            return make_error<void*>(StringSlice(fmt::format("Could not resolve function {} in {}: {}", name, _name, platform::get_last_error())));
+        if(address == nullptr) {
+            return make_error<void*>(std::string_view(
+                    fmt::format("Could not resolve function {} in {}: {}", name, _name, platform::get_last_error())));
         }
 
-        return {reinterpret_cast<void*>(address)};
+        return {reinterpret_cast<void*>(address)};// NOLINT
     }
-}
+}// namespace kstd::platform
