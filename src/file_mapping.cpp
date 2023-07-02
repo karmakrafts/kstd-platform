@@ -105,7 +105,9 @@ namespace kstd::platform {
 
         if(is_executable) {
             prot |= PROT_EXEC;
+#ifndef PLATFORM_APPLE
             map_flags |= MAP_EXECUTABLE;
+#endif
         }
 
         _address = KSTD_MMAP(nullptr, size, prot, map_flags, _file.get_handle(), 0);
