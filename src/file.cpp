@@ -25,7 +25,7 @@
 
 #include <sys/stat.h>
 
-#ifdef CPU_64_BIT
+#if defined(CPU_64_BIT) && !defined(PLATFORM_APPLE)
 #define KSTD_FSTAT ::fstat64
 #define KSTD_FTRUNCATE ::ftruncate64
 #define KSTD_FILE_STAT struct stat64
@@ -126,8 +126,8 @@ namespace kstd::platform {
 
 #ifdef PLATFORM_WINDOWS
         if(!::CloseHandle(_handle)) {
-            return {std::unexpected(
-                    fmt::format("Could not close file {}: {}", _path.string(), platform::get_last_error()))};
+            return make_error<void>(std::string_view(
+                    fmt::format("Could not close file {}: {}", _path.string(), platform::get_last_error())));
         }
 
         delete reinterpret_cast<SECURITY_DESCRIPTOR*>(_security_attribs.lpSecurityDescriptor);
