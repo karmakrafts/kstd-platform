@@ -28,7 +28,7 @@
 namespace kstd::platform {
     class DynamicLib final {
         std::string _name;
-        KSTD_LIBRARY_HANDLE_TYPE _handle;
+        NativeModuleHandle _handle;
 
         [[nodiscard]] auto get_function_address(std::string_view name) noexcept -> Result<void*>;
 
@@ -62,7 +62,7 @@ namespace kstd::platform {
             return _handle != nullptr;
         }
 
-        [[nodiscard]] inline auto get_handle() const noexcept -> KSTD_LIBRARY_HANDLE_TYPE {
+        [[nodiscard]] inline auto get_handle() const noexcept -> NativeModuleHandle {
             return _handle;
         }
     };

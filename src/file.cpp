@@ -246,7 +246,7 @@ namespace kstd::platform {
                     fmt::format("Could not reset file pointer for {}: {}", _path.string(), get_last_error())));
         }
 #else
-        if(KSTD_FTRUNCATE(_handle, static_cast<KSTD_OFFSET_TYPE>(size)) == -1) {
+        if(KSTD_FTRUNCATE(_handle, static_cast<NativeOffset>(size)) == -1) {
             return make_error<void>(std::string_view(
                     fmt::format("Could not set file pointer for {}: {}", _path.string(), get_last_error())));
         }

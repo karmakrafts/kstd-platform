@@ -25,22 +25,22 @@
 
 namespace kstd::platform {
     class FileHandle final {
-        KSTD_FILE_HANDLE_TYPE _value;
+        NativeFileHandle _value;
 
         public:
         KSTD_DEFAULT_MOVE_COPY(FileHandle)
 
-        explicit FileHandle(KSTD_FILE_HANDLE_TYPE value) noexcept :
+        explicit FileHandle(NativeFileHandle value) noexcept :
                 _value(value) {
         }
 
         FileHandle() noexcept :
-                _value(KSTD_INVALID_FILE_HANDLE) {
+                _value(invalid_file_handle()) {
         }
 
         ~FileHandle() noexcept = default;
 
-        [[nodiscard]] inline operator KSTD_FILE_HANDLE_TYPE() const noexcept {// NOLINT
+        [[nodiscard]] inline operator NativeFileHandle() const noexcept {// NOLINT
             return _value;
         }
 

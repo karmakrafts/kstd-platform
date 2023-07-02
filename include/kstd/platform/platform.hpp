@@ -25,35 +25,15 @@
 #ifdef PLATFORM_WINDOWS
 
 #define WIN32_LEAN_AND_MEAN
-
 #include <Windows.h>
 #include <sysinfoapi.h>
-
 #undef min// Make sure this is not defined, no matter what
 #undef max// Make sure this is not defined, no matter what
-#define KSTD_FILE_HANDLE_TYPE HANDLE
-#define KSTD_OFFSET_TYPE isize
-#define KSTD_INVALID_FILE_HANDLE INVALID_HANDLE_VALUE
-#define KSTD_LIBRARY_HANDLE_TYPE HMODULE
 
 #else
 
 #include <fcntl.h>
 #include <unistd.h>
-
-#define KSTD_FILE_HANDLE_TYPE i32
-#define KSTD_INVALID_FILE_HANDLE (-1)
-#define KSTD_LIBRARY_HANDLE_TYPE void*
-
-#ifdef PLATFORM_APPLE
-#define KSTD_OFFSET_TYPE off_t
-#else
-#if defined(CPU_64_BIT)
-#define KSTD_OFFSET_TYPE __off64_t
-#else
-#define KSTD_OFFSET_TYPE __off_t
-#endif
-#endif
 
 #endif
 
@@ -61,6 +41,40 @@
 #include <string>
 
 namespace kstd::platform {
+#if defined(PLATFORM_WINDOWS)
+    using NativeFileHandle = HANDLE;
+    using NativeModuleHandle = HMODULE;
+    using NativeOffset = isize;
+#elif defined(PLATFORM_APPLE)
+    using NativeFileHandle = i32;
+    using NativeModuleHandle = void*;
+    using NativeOffset = off_t;
+#else
+    using NativeFileHandle = i32;
+    using NativeModuleHandle = void*;
+#ifdef CPU_64_BIT
+    using NativeOffset = __off64_t;
+#else
+    using NativeOffset = __off_t;
+#endif
+#endif
+
+    [[nodiscard]] constexpr auto invalid_file_handle() noexcept -> NativeFileHandle {
+#ifdef PLATFORM_WINDOWS
+        return INVALID_HANDLE_VALUE;
+#else
+        return -1;
+#endif
+    }
+
+    [[nodiscard]] constexpr auto invalid_module_handle() noexcept -> NativeModuleHandle {
+#ifdef PLATFORM_WINDOWS
+        return INVALID_HANDLE_VALUE;
+#else
+        return nullptr;
+#endif
+    }
+
     enum class Platform : u8 {
         WINDOWS,
         LINUX,
