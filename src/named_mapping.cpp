@@ -103,17 +103,17 @@ namespace kstd::platform {
         }
 
         if(is_readable) {
-            security |= S_IRUSR | S_IRGRP | S_IROTH;
+            security |= S_IRUSR;
             map_prot |= PROT_READ;
         }
 
         if(is_writable) {
-            security |= S_IWUSR | S_IWGRP | S_IWOTH;
+            security |= S_IWUSR;
             map_prot |= PROT_WRITE;
         }
 
         if(is_executable) {
-            security |= S_IXUSR | S_IXGRP | S_IXOTH;
+            security |= S_IXUSR;
             map_prot |= PROT_EXEC;
 #ifndef PLATFORM_APPLE
             map_flags |= MAP_EXECUTABLE;
