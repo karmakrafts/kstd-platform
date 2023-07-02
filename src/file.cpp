@@ -226,7 +226,8 @@ namespace kstd::platform {
         }
 
 #ifdef PLATFORM_WINDOWS
-        LARGE_INTEGER distance {.QuadPart = static_cast<LONGLONG>(size)};
+        LARGE_INTEGER distance {};
+        distance.QuadPart = static_cast<LONGLONG>(size);
 
         if(!::SetFilePointerEx(_handle, distance, nullptr, FILE_BEGIN)) {
             return make_error<void>(std::string_view(
