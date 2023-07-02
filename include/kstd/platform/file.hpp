@@ -37,7 +37,7 @@ namespace kstd::platform {
     class File final {
         std::filesystem::path _path;
         FileMode _mode;
-        platform::FileHandle _handle;
+        FileHandle _handle;
 
 #ifdef PLATFORM_WINDOWS
         SECURITY_ATTRIBUTES _security_attribs {};
@@ -70,7 +70,7 @@ namespace kstd::platform {
             return _mode;
         }
 
-        [[nodiscard]] inline auto get_handle() const noexcept -> platform::FileHandle {
+        [[nodiscard]] inline auto get_handle() const noexcept -> FileHandle {
             return _handle;
         }
 

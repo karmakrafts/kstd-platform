@@ -30,17 +30,17 @@
 
 TEST(kstd_platform_DynamicLibrary, TestLoadUnload) {
     auto lib = kstd::platform::DynamicLib(LIB_C_NAME);
-    ASSERT_NO_THROW(lib.load().get());
-    ASSERT_NO_THROW(lib.unload().get());
+    ASSERT_NO_FATAL_FAILURE(*lib.load());
+    ASSERT_NO_FATAL_FAILURE(*lib.unload());
 }
 
 TEST(kstd_platform_DynamicLibrary, TestCallFunction) {
     auto lib = kstd::platform::DynamicLib(LIB_C_NAME);
-    ASSERT_NO_THROW(lib.load().get());
+    ASSERT_NO_FATAL_FAILURE(*lib.load());
 
     auto result = lib.get_function<kstd::i32, const char*, const char*>("printf");
     ASSERT_TRUE(result);
     (*result)("%s", "Hello World!\n");
 
-    ASSERT_NO_THROW(lib.unload().get());
+    ASSERT_NO_THROW(*lib.unload());
 }

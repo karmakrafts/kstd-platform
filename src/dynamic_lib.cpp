@@ -43,14 +43,14 @@ namespace kstd::platform {
 
         if(_handle == nullptr) {
             return make_error<void>(
-                    std::string_view(fmt::format("Could not open DLL {}: {}", _name, platform::get_last_error())));
+                    std::string_view(fmt::format("Could not open DLL {}: {}", _name, get_last_error())));
         }
 #else
         _handle = ::dlopen(_name.c_str(), RTLD_LAZY);
 
         if(_handle == nullptr) {
-            return make_error<void>(std::string_view(
-                    fmt::format("Could not open shared object {}: {}", _name, platform::get_last_error())));
+            return make_error<void>(
+                    std::string_view(fmt::format("Could not open shared object {}: {}", _name, get_last_error())));
         }
 #endif
 
@@ -61,12 +61,12 @@ namespace kstd::platform {
 #ifdef PLATFORM_WINDOWS
         if(!::FreeLibrary(_handle)) {
             return make_error<void>(
-                    std::string_view(fmt::format("Could not close DLL {}: {}", _name, platform::get_last_error())));
+                    std::string_view(fmt::format("Could not close DLL {}: {}", _name, get_last_error())));
         }
 #else
         if(::dlclose(_handle) != 0) {
-            return make_error<void>(std::string_view(
-                    fmt::format("Could not close shared object {}: {}", _name, platform::get_last_error())));
+            return make_error<void>(
+                    std::string_view(fmt::format("Could not close shared object {}: {}", _name, get_last_error())));
         }
 #endif
 
@@ -82,7 +82,7 @@ namespace kstd::platform {
 
         if(address == nullptr) {
             return make_error<void*>(std::string_view(
-                    fmt::format("Could not resolve function {} in {}: {}", name, _name, platform::get_last_error())));
+                    fmt::format("Could not resolve function {} in {}: {}", name, _name, get_last_error())));
         }
 
         return {reinterpret_cast<void*>(address)};// NOLINT

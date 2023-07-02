@@ -65,7 +65,7 @@ namespace kstd::platform {
 
         if(::InitializeSecurityDescriptor(sec_desc, SECURITY_DESCRIPTOR_REVISION) == 0) {
             return make_error<void>(std::string_view(fmt::format("Could not allocate security descriptor for {}: {}",
-                                                                 _path.string(), platform::get_last_error())));
+                                                                 _path.string(), get_last_error())));
         }
 
         _security_attribs.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -82,8 +82,8 @@ namespace kstd::platform {
         }
 
         const auto disposition = exists ? OPEN_EXISTING : CREATE_NEW;
-        _handle = platform::FileHandle(::CreateFileW(wide_path.data(), access, 0, &_security_attribs, disposition,
-                                                     FILE_ATTRIBUTE_NORMAL, nullptr));
+        _handle = FileHandle(::CreateFileW(wide_path.data(), access, 0, &_security_attribs, disposition,
+                                           FILE_ATTRIBUTE_NORMAL, nullptr));
 #else
         i32 access = 0;
         u32 security = 0;
@@ -107,12 +107,12 @@ namespace kstd::platform {
             access |= O_CREAT;
         }
 
-        _handle = platform::FileHandle(::open(_path.c_str(), access, security));// NOLINT
+        _handle = FileHandle(::open(_path.c_str(), access, security));// NOLINT
 #endif
 
         if(!_handle.is_valid()) {
-            return make_error<void>(std::string_view(
-                    fmt::format("Could not open file {}: {}", _path.string(), platform::get_last_error())));
+            return make_error<void>(
+                    std::string_view(fmt::format("Could not open file {}: {}", _path.string(), get_last_error())));
         }
 
         return {};
@@ -126,19 +126,19 @@ namespace kstd::platform {
 
 #ifdef PLATFORM_WINDOWS
         if(!::CloseHandle(_handle)) {
-            return make_error<void>(std::string_view(
-                    fmt::format("Could not close file {}: {}", _path.string(), platform::get_last_error())));
+            return make_error<void>(
+                    std::string_view(fmt::format("Could not close file {}: {}", _path.string(), get_last_error())));
         }
 
         delete reinterpret_cast<SECURITY_DESCRIPTOR*>(_security_attribs.lpSecurityDescriptor);
 #else
         if(::close(_handle) != 0) {
-            return make_error<void>(std::string_view(
-                    fmt::format("Could not close file {}: {}", _path.string(), platform::get_last_error())));
+            return make_error<void>(
+                    std::string_view(fmt::format("Could not close file {}: {}", _path.string(), get_last_error())));
         }
 #endif
 
-        _handle = platform::FileHandle();// Set handle to be invalid after this
+        _handle = FileHandle();// Set handle to be invalid after this
         return {};
     }
 
@@ -147,8 +147,8 @@ namespace kstd::platform {
         KSTD_FILE_STAT stats {};
 
         if(KSTD_FSTAT(_handle, &stats) != 0) {
-            return make_error<void>(std::string_view(
-                    fmt::format("Could not stat file {}: {}", _path.string(), platform::get_last_error())));
+            return make_error<void>(
+                    std::string_view(fmt::format("Could not stat file {}: {}", _path.string(), get_last_error())));
         }
 
         auto mode = stats.st_mode;
@@ -161,8 +161,8 @@ namespace kstd::platform {
         }
 
         if(::fchmod(_handle, mode) != 0) {
-            return make_error<void>(std::string_view(fmt::format("Could not set executable bit for {}: {}",
-                                                                 _path.string(), platform::get_last_error())));
+            return make_error<void>(std::string_view(
+                    fmt::format("Could not set executable bit for {}: {}", _path.string(), get_last_error())));
         }
 #endif
 
@@ -183,8 +183,8 @@ namespace kstd::platform {
         KSTD_FILE_STAT stats {};
 
         if(KSTD_FSTAT(_handle, &stats) != 0) {
-            return make_error<bool>(std::string_view(
-                    fmt::format("Could not stat file {}: {}", _path.string(), platform::get_last_error())));
+            return make_error<bool>(
+                    std::string_view(fmt::format("Could not stat file {}: {}", _path.string(), get_last_error())));
         }
 
         return make_ok<bool>(((stats.st_mode & S_IXUSR) == S_IXUSR) | ((stats.st_mode & S_IXGRP) == S_IXGRP) |
@@ -202,8 +202,8 @@ namespace kstd::platform {
         LARGE_INTEGER size {};
 
         if(!::GetFileSizeEx(_handle, &size)) {
-            return make_error<usize>(std::string_view(fmt::format("Could not retrieve file size for {}: {}",
-                                                                  _path.string(), platform::get_last_error())));
+            return make_error<usize>(std::string_view(
+                    fmt::format("Could not retrieve file size for {}: {}", _path.string(), get_last_error())));
         }
 
         return make_ok<usize>(static_cast<usize>(size.QuadPart));
@@ -211,8 +211,8 @@ namespace kstd::platform {
         KSTD_FILE_STAT stats {};
 
         if(KSTD_FSTAT(_handle, &stats) != 0) {
-            return make_error<usize>(std::string_view(fmt::format("Could not retrieve file size for {}: {}",
-                                                                  _path.string(), platform::get_last_error())));
+            return make_error<usize>(std::string_view(
+                    fmt::format("Could not retrieve file size for {}: {}", _path.string(), get_last_error())));
         }
 
         return make_ok<usize>(static_cast<usize>(stats.st_size));
@@ -231,24 +231,24 @@ namespace kstd::platform {
 
         if(!::SetFilePointerEx(_handle, distance, nullptr, FILE_BEGIN)) {
             return make_error<void>(std::string_view(
-                    fmt::format("Could not set file pointer for {}: {}", _path.string(), platform::get_last_error())));
+                    fmt::format("Could not set file pointer for {}: {}", _path.string(), get_last_error())));
         }
 
         if(!::SetEndOfFile(_handle)) {
-            return make_error<void>(std::string_view(
-                    fmt::format("Could not truncate file {}: {}", _path.string(), platform::get_last_error())));
+            return make_error<void>(
+                    std::string_view(fmt::format("Could not truncate file {}: {}", _path.string(), get_last_error())));
         }
 
         distance.QuadPart = 0;
 
         if(!::SetFilePointerEx(_handle, distance, nullptr, FILE_BEGIN)) {
-            return make_error<void>(std::string_view(fmt::format("Could not reset file pointer for {}: {}",
-                                                                 _path.string(), platform::get_last_error())));
+            return make_error<void>(std::string_view(
+                    fmt::format("Could not reset file pointer for {}: {}", _path.string(), get_last_error())));
         }
 #else
         if(KSTD_FTRUNCATE(_handle, static_cast<KSTD_OFFSET_TYPE>(size)) == -1) {
             return make_error<void>(std::string_view(
-                    fmt::format("Could not set file pointer for {}: {}", _path.string(), platform::get_last_error())));
+                    fmt::format("Could not set file pointer for {}: {}", _path.string(), get_last_error())));
         }
 #endif
 

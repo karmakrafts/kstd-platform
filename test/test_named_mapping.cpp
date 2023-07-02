@@ -18,12 +18,15 @@
  */
 
 #include <gtest/gtest.h>
-#include <kstd/platform/file.hpp>
+#include <kstd/platform/named_mapping.hpp>
 
-TEST(kstd_platform_File, TestOpenClose) {
-    kstd::platform::File file("./test/test_file.bin", kstd::platform::FileMode::READ_WRITE);
+TEST(kstd_platform_NamedMapping, TestMapUnmap) {
+    using namespace kstd::platform;
 
-    ASSERT_TRUE(file.open().is_ok());
-    ASSERT_TRUE(file.get_handle().is_valid());
-    ASSERT_TRUE(file.close().is_ok());
+    const auto access = MappingAccess::READ | MappingAccess::WRITE;
+    NamedMapping mapping("hello_world", access, 128);
+
+    *mapping.map();
+    ASSERT_TRUE(mapping.get_handle().is_valid());
+    *mapping.unmap();
 }
