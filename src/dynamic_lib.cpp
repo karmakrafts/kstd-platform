@@ -28,20 +28,22 @@
 #endif
 
 #include <fmt/format.h>
+#include <kstd/utils.hpp>
 
 namespace kstd::platform {
     DynamicLib::DynamicLib(std::string name) noexcept :
-            _name(std::move(name)),
+            _name(utils::move(name)),
             _handle(nullptr) {
     }
 
     auto DynamicLib::load() noexcept -> Result<void> {
 #ifdef PLATFORM_WINDOWS
-        const auto wide_name = util::to_utf16(_name);
+        const auto wide_name = utils::to_utf16(_name);
         _handle = ::LoadLibraryW(wide_name.data());
 
         if(_handle == nullptr) {
-            return {std::unexpected(fmt::format("Could not open DLL {}: {}", _name, platform::get_last_error()))};
+            return make_error<void>(
+                    std::string_view(fmt::format("Could not open DLL {}: {}", _name, platform::get_last_error())));
         }
 #else
         _handle = ::dlopen(_name.c_str(), RTLD_LAZY);
@@ -58,7 +60,8 @@ namespace kstd::platform {
     auto DynamicLib::unload() noexcept -> Result<void> {
 #ifdef PLATFORM_WINDOWS
         if(!::FreeLibrary(_handle)) {
-            return {std::unexpected(fmt::format("Could not close DLL {}: {}", _name, platform::get_last_error()))};
+            return make_error<void>(
+                    std::string_view(fmt::format("Could not close DLL {}: {}", _name, platform::get_last_error())));
         }
 #else
         if(::dlclose(_handle) != 0) {
@@ -70,7 +73,7 @@ namespace kstd::platform {
         return {};
     }
 
-    auto DynamicLib::get_function_address(const std::string_view& name) noexcept -> Result<void*> {
+    auto DynamicLib::get_function_address(std::string_view name) noexcept -> Result<void*> {
 #ifdef PLATFORM_WINDOWS
         auto* address = ::GetProcAddress(_handle, name.data());
 #else

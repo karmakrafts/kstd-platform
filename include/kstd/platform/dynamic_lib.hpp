@@ -30,7 +30,7 @@ namespace kstd::platform {
         std::string _name;
         KSTD_LIBRARY_HANDLE_TYPE _handle;
 
-        [[nodiscard]] auto get_function_address(const std::string_view& name) noexcept -> Result<void*>;
+        [[nodiscard]] auto get_function_address(std::string_view name) noexcept -> Result<void*>;
 
         public:
         KSTD_NO_MOVE_COPY(DynamicLib)
@@ -44,7 +44,7 @@ namespace kstd::platform {
         [[nodiscard]] auto unload() noexcept -> Result<void>;
 
         template<typename R, typename... ARGS>
-        [[nodiscard]] inline auto get_function(const std::string_view& name) noexcept -> Result<R (*)(ARGS...)> {
+        [[nodiscard]] inline auto get_function(std::string_view name) noexcept -> Result<R (*)(ARGS...)> {
             auto address_result = get_function_address(name);
 
             if(!address_result) {
