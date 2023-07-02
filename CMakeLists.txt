@@ -35,5 +35,11 @@ target_include_directories(kstd-platform-tests PUBLIC "${CMAKE_SOURCE_DIR}/kstd-
 target_include_directories(kstd-platform-tests PUBLIC "${CMAKE_SOURCE_DIR}/include")
 target_include_fmt(kstd-platform-tests)
 target_include_gtest(kstd-platform-tests)
-target_link_libraries(kstd-platform-tests kstd-platform-static )
+target_link_libraries(kstd-platform-tests kstd-platform-static)
 add_dependencies(kstd-platform-tests kstd-platform-static)
+
+if(PLATFORM_LINUX)
+    target_link_libraries(kstd-platform -ldl)
+    target_link_libraries(kstd-platform-static -ldl)
+    target_link_libraries(kstd-platform-tests -ldl)
+endif()
