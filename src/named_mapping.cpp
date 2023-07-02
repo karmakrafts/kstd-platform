@@ -115,7 +115,9 @@ namespace kstd::platform {
         if(is_executable) {
             security |= S_IXUSR | S_IXGRP | S_IXOTH;
             map_prot |= PROT_EXEC;
+#ifndef PLATFORM_APPLE
             map_flags |= MAP_EXECUTABLE;
+#endif
         }
 
         _handle = FileHandle(shm_open(_name.c_str(), access, security));
