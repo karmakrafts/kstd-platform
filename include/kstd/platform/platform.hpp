@@ -59,7 +59,7 @@ namespace kstd::platform {
 #endif
 #endif
 
-    [[nodiscard]] constexpr auto invalid_file_handle() noexcept -> NativeFileHandle {
+    [[nodiscard]] inline auto invalid_file_handle() noexcept -> NativeFileHandle {
 #ifdef PLATFORM_WINDOWS
         return INVALID_HANDLE_VALUE;
 #else
@@ -67,7 +67,7 @@ namespace kstd::platform {
 #endif
     }
 
-    [[nodiscard]] constexpr auto invalid_module_handle() noexcept -> NativeModuleHandle {
+    [[nodiscard]] inline auto invalid_module_handle() noexcept -> NativeModuleHandle {
         return nullptr; // This is here as a placeholder if anything should ever change
     }
 
