@@ -45,10 +45,14 @@
 #define KSTD_INVALID_FILE_HANDLE (-1)
 #define KSTD_LIBRARY_HANDLE_TYPE void*
 
-#if defined(CPU_64_BIT) && !defined(PLATFORM_APPLE)
+#ifdef PLATFORM_APPLE
+#define KSTD_OFFSET_TYPE off_t
+#else
+#if defined(CPU_64_BIT)
 #define KSTD_OFFSET_TYPE __off64_t
 #else
 #define KSTD_OFFSET_TYPE __off_t
+#endif
 #endif
 
 #endif
