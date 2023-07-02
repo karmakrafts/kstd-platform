@@ -68,11 +68,7 @@ namespace kstd::platform {
     }
 
     [[nodiscard]] constexpr auto invalid_module_handle() noexcept -> NativeModuleHandle {
-#ifdef PLATFORM_WINDOWS
-        return INVALID_HANDLE_VALUE;
-#else
-        return nullptr;
-#endif
+        return nullptr; // This is here as a placeholder if anything should ever change
     }
 
     enum class Platform : u8 {
