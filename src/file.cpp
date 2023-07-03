@@ -40,8 +40,7 @@
 namespace kstd::platform {
     File::File(std::filesystem::path path, FileMode mode) noexcept :
             _path(std::move(path)),
-            _mode(mode),
-            _handle() {
+            _mode(mode) {
     }
 
     auto File::open() noexcept -> Result<void> {
@@ -187,8 +186,8 @@ namespace kstd::platform {
                     std::string_view(fmt::format("Could not stat file {}: {}", _path.string(), get_last_error())));
         }
 
-        return make_ok<bool>(((stats.st_mode & S_IXUSR) == S_IXUSR) | ((stats.st_mode & S_IXGRP) == S_IXGRP) |
-                             ((stats.st_mode & S_IXOTH) == S_IXOTH));// NOLINT
+        return make_ok<bool>(((stats.st_mode & S_IXUSR) == S_IXUSR) | ((stats.st_mode & S_IXGRP) == S_IXGRP) |// NOLINT
+                             ((stats.st_mode & S_IXOTH) == S_IXOTH));                                         // NOLINT
 #endif
     }
 

@@ -23,14 +23,6 @@
 #include <kstd/result.hpp>
 #include <kstd/types.hpp>
 
-#ifdef PLATFORM_UNIX
-#if defined(CPU_64_BIT) && !defined(PLATFORM_APPLE)
-#define KSTD_MMAP ::mmap64
-#else
-#define KSTD_MMAP ::mmap
-#endif
-#endif
-
 namespace kstd::platform {
     enum class MappingType : u8 {
         NAMED,

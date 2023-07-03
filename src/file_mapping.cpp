@@ -20,6 +20,14 @@
 #include "kstd/platform/file_mapping.hpp"
 #include "kstd/platform/memory.hpp"
 
+#ifdef PLATFORM_UNIX
+#if defined(CPU_64_BIT) && !defined(PLATFORM_APPLE)
+#define KSTD_MMAP ::mmap64
+#else
+#define KSTD_MMAP ::mmap
+#endif
+#endif
+
 namespace kstd::platform {
     FileMapping::FileMapping(std::filesystem::path path, MappingAccess access) noexcept :
             Mapping(MappingType::FILE, access),
