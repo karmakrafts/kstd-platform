@@ -30,7 +30,7 @@
 
 namespace kstd::platform {
     FileMapping::FileMapping(std::filesystem::path path, MappingAccess access) noexcept :
-            Mapping(MappingType::FILE, access),
+            MemoryMapping(MappingType::FILE, access),
             _file(File(std::move(path), derive_file_mode(access))) {
     }
 

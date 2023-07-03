@@ -20,9 +20,10 @@
 #pragma once
 
 #include "memory_mapping.hpp"
+#include <filesystem>
 
 namespace kstd::platform {
-    class FileMapping final : public Mapping {
+    class FileMapping final : public MemoryMapping {
         File _file;
 
 #ifdef PLATFORM_WINDOWS
@@ -34,6 +35,8 @@ namespace kstd::platform {
         [[nodiscard]] auto soft_unmap() noexcept -> Result<void>;
 
         public:
+        KSTD_NO_MOVE_COPY(FileMapping)
+
         FileMapping(std::filesystem::path path, MappingAccess access) noexcept;
 
         ~FileMapping() noexcept final = default;

@@ -27,9 +27,20 @@ TEST(kstd_platform_Process, TestFind) {
 
 TEST(kstd_platform_Process, TestCurrent) {
     auto proc = kstd::platform::Process::get_current();
+
     const auto id = proc.get_id();
     std::cout << fmt::format("Current PID: {}\n", id);
     ASSERT_NE(id, 0);
+}
+
+TEST(kstd_platform_Process, TestGetPath) {
+    auto proc = kstd::platform::Process::get_current();
+
+    auto path_result = proc.get_path();
+    ASSERT_TRUE(path_result);
+    ASSERT_TRUE(!path_result->empty());
+
+    std::cout << fmt::format("Current Path: {}\n", path_result->c_str());
 }
 
 TEST(kstd_platform_Process, TestOpenHandle) {

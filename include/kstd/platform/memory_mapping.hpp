@@ -20,6 +20,7 @@
 #pragma once
 
 #include "file.hpp"
+#include <kstd/defaults.hpp>
 #include <kstd/result.hpp>
 #include <kstd/types.hpp>
 
@@ -88,20 +89,22 @@ namespace kstd::platform {
         }
     }
 
-    class Mapping {
+    class MemoryMapping {
         protected:
-        MappingType _type;
-        MappingAccess _access;
-        void* _address;
+        MappingType _type;    // NOLINT
+        MappingAccess _access;// NOLINT
+        void* _address;       // NOLINT
 
-        Mapping(MappingType type, MappingAccess access) noexcept :
+        MemoryMapping(MappingType type, MappingAccess access) noexcept :
                 _type(type),
                 _access(access),
                 _address(nullptr) {
         }
 
         public:
-        virtual ~Mapping() noexcept = default;
+        KSTD_NO_MOVE_COPY(MemoryMapping)
+
+        virtual ~MemoryMapping() noexcept = default;
 
         [[nodiscard]] virtual auto map() noexcept -> Result<void> = 0;
 
