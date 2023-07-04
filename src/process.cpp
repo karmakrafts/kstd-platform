@@ -21,10 +21,11 @@
 
 #include <array>
 #include <fmt/format.h>
-#include <kstd/libc.hpp>
 #include <kstd/utils.hpp>
 
 #ifdef PLATFORM_WINDOWS
+#include <Psapi.h>
+#include <processthreadsapi.h>
 #include <regex>
 #define KSTD_MAX_PATH MAX_PATH
 #else
@@ -45,26 +46,25 @@ namespace kstd::platform {
         std::array<char, KSTD_MAX_PATH> buffer {};
 
 #ifdef PLATFORM_WINDOWS
-        auto proc = ::OpenProcess(PROCESS_ALL_ACCESS, false, _handle);
+        auto handle_result = open_handle();// This handle will be automatically disposed
 
-        if(proc == nullptr) {
-            return make_error<std::filesystem::path>("Could not open process handle"sv);
+        if(!handle_result) {
+            return handle_result.forward_error<std::filesystem::path>();
         }
 
-        ::GetProcessImageFileNameA(proc, buffer.data(), MAX_PATH);
-        ::CloseHandle(proc);
+        GetProcessImageFileNameA(*handle_result, buffer.data(), MAX_PATH);
         std::string path(buffer.data());
 
-        static std::regex pattern("\\\\\\\\Device\\\\\\\\HarddiskVolume[0-9]+\\\\\\\\");
+        static auto s_pattern = std::regex(R"(\\\\Device\\\\HarddiskVolume[0-9]+\\\\)");
         std::smatch match;
 
-        if(!std::regex_search(path, match, pattern)) {
+        if(!std::regex_search(path, match, s_pattern)) {
             return make_error<std::filesystem::path>("Could not find device match for kernel path"sv);
         }
 
         auto device_path = match[0].str();
         // TODO: ...
-        return make_ok(std::filesystem::path(path));
+        return make_ok(std::filesystem::path("C:\\"));
 #else
         auto exe_path = fmt::format("/proc/{}/exe", _id);
         if(::readlink(exe_path.c_str(), buffer.data(), KSTD_MAX_PATH) == -1) {
@@ -74,11 +74,16 @@ namespace kstd::platform {
 #endif
     }
 
-    auto Process::open_handle() noexcept -> ProcessHandle {
+    auto Process::open_handle() const noexcept -> Result<ProcessHandle> {
+        using namespace std::string_view_literals;
 #ifdef PLATFORM_WINDOWS
-        return {::OpenProcess(PROCESS_ALL_ACCESS, false, _id)};
+        HANDLE handle = ::OpenProcess(PROCESS_ALL_ACCESS, FALSE, _id);
+        if(handle == nullptr) {
+            return make_error<ProcessHandle>("Could not open process handle"sv);
+        }
+        return make_ok(ProcessHandle(handle));
 #else
-        return {_id};
+        return make_ok(ProcessHandle(_id));
 #endif
     }
 }// namespace kstd::platform

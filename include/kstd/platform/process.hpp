@@ -29,7 +29,7 @@ namespace kstd::platform {
     class Process final {
         NativeProcessId _id;
 
-        inline Process(NativeProcessId id) noexcept :
+        inline Process(NativeProcessId id) noexcept :// NOLINT
                 _id(id) {
         }
 
@@ -42,7 +42,7 @@ namespace kstd::platform {
 
         [[nodiscard]] auto get_path() const noexcept -> Result<std::filesystem::path>;
 
-        [[nodiscard]] auto open_handle() noexcept -> ProcessHandle;
+        [[nodiscard]] auto open_handle() const noexcept -> Result<ProcessHandle>;
 
         [[nodiscard]] constexpr auto get_id() const noexcept -> NativeProcessId {
             return _id;

@@ -59,7 +59,7 @@ namespace kstd::platform {
 
     auto DynamicLib::unload() noexcept -> Result<void> {
 #ifdef PLATFORM_WINDOWS
-        if(!::FreeLibrary(_handle)) {
+        if(::FreeLibrary(_handle) == FALSE) {
             return make_error<void>(
                     std::string_view(fmt::format("Could not close DLL {}: {}", _name, get_last_error())));
         }
@@ -85,6 +85,6 @@ namespace kstd::platform {
                     fmt::format("Could not resolve function {} in {}: {}", name, _name, get_last_error())));
         }
 
-        return {reinterpret_cast<void*>(address)};// NOLINT
+        return make_ok(reinterpret_cast<void*>(address));// NOLINT
     }
 }// namespace kstd::platform
