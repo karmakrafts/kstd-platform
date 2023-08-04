@@ -42,29 +42,18 @@ namespace kstd::platform {
     }
 
     auto Process::get_path() const noexcept -> Result<std::filesystem::path> {
-        std::array<char, KSTD_MAX_PATH> buffer {};
-
 #ifdef PLATFORM_WINDOWS
+        std::array<wchar_t, KSTD_MAX_PATH> buffer {};
         auto handle_result = open_handle();// This handle will be automatically disposed
 
         if(!handle_result) {
             return handle_result.forward<std::filesystem::path>();
         }
 
-        ::GetProcessImageFileNameA(*handle_result, buffer.data(), MAX_PATH);
-        std::string path(buffer.data());
-
-        static std::regex s_pattern {R"(\\\\Device\\\\HarddiskVolume[0-9]+\\\\)"};
-        std::smatch match;
-
-        if(!std::regex_search(path, match, s_pattern)) {
-            return Error {"Could not find device match for kernel path"};
-        }
-
-        auto device_path = match[0].str();
-        // TODO: ...
-        return std::filesystem::path {"C:\\"};
+        ::GetModuleFileNameExW(*handle_result, 0, buffer.data(), MAX_PATH);
+        return std::filesystem::path {buffer.data()};
 #else
+        std::array<char, KSTD_MAX_PATH> buffer {};
         auto exe_path = fmt::format("/proc/{}/exe", _id);
         if(::readlink(exe_path.c_str(), buffer.data(), KSTD_MAX_PATH) == -1) {
             return Error {get_last_error()};
