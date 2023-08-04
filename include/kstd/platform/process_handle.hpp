@@ -42,10 +42,10 @@ namespace kstd::platform {
         NativeProcessHandle _value;
 
         public:
-        KSTD_DEFAULT_MOVE_COPY(ProcessHandle)
+        KSTD_DEFAULT_MOVE_COPY(ProcessHandle, ProcessHandle)
 
-        ProcessHandle(NativeProcessHandle value) noexcept :
-                _value(value) {
+        ProcessHandle(NativeProcessHandle value) noexcept :// NOLINT
+                _value {value} {
         }
 
 #ifdef PLATFORM_WINDOWS

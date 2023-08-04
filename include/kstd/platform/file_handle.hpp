@@ -23,14 +23,14 @@
 
 #include "platform.hpp"
 
-namespace kstd::platform {
+namespace kstd::platform::file {
     class FileHandle final {
         NativeFileHandle _value;
 
         public:
-        KSTD_DEFAULT_MOVE_COPY(FileHandle)
+        KSTD_DEFAULT_MOVE_COPY(FileHandle, FileHandle)
 
-        explicit FileHandle(NativeFileHandle value) noexcept :
+        FileHandle(NativeFileHandle value) noexcept :// NOLINT
                 _value(value) {
         }
 
@@ -60,4 +60,4 @@ namespace kstd::platform {
 #endif
         }
     };
-}// namespace kstd::platform
+}// namespace kstd::platform::file

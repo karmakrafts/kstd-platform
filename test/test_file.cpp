@@ -21,7 +21,7 @@
 #include <kstd/platform/file.hpp>
 
 TEST(kstd_platform_File, TestOpenClose) {
-    kstd::platform::File file("./test/test_file.bin", kstd::platform::FileMode::READ_WRITE);
+    kstd::platform::file::File file("./test/test_file.bin", kstd::platform::file::FileMode::READ_WRITE);
 
     ASSERT_TRUE(file.open().is_ok());
     ASSERT_TRUE(file.get_handle().is_valid());

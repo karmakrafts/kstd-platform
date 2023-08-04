@@ -32,13 +32,13 @@ TEST(kstd_platform, TestGetUsableSize) {
     constexpr auto size = sizeof(void*) << 1;
     auto* memory = kstd::libc::malloc(size);// NOLINT
     ASSERT_TRUE(memory != nullptr);
-    ASSERT_EQ(kstd::platform::get_usable_size(memory), size);
+    ASSERT_EQ(kstd::platform::mm::get_usable_size(memory), size);
     kstd::libc::free(memory);// NOLINT
 }
 
 TEST(kstd_platform, TestAllocateAligned) {
     constexpr auto size = sizeof(Foo);
-    auto* memory = reinterpret_cast<Foo*>(kstd::platform::alloc_aligned(size, foo_alignment));// NOLINT
+    auto* memory = reinterpret_cast<Foo*>(kstd::platform::mm::alloc_aligned(size, foo_alignment));// NOLINT
     ASSERT_TRUE(memory != nullptr);
 
     memory->x = 1337;
@@ -46,12 +46,12 @@ TEST(kstd_platform, TestAllocateAligned) {
     ASSERT_EQ(memory->x, 1337);
     ASSERT_EQ(memory->y, 69);
 
-    kstd::platform::free_aligned(memory);
+    kstd::platform::mm::free_aligned(memory);
 }
 
 TEST(kstd_platform, TestReAllocAligned) {
     constexpr auto size = sizeof(Foo);
-    auto* memory = reinterpret_cast<Foo*>(kstd::platform::alloc_aligned(size, foo_alignment));// NOLINT
+    auto* memory = reinterpret_cast<Foo*>(kstd::platform::mm::alloc_aligned(size, foo_alignment));// NOLINT
     ASSERT_TRUE(memory != nullptr);
 
     memory->x = 1337;
@@ -60,7 +60,8 @@ TEST(kstd_platform, TestReAllocAligned) {
     ASSERT_EQ(memory->y, 69);
 
     constexpr auto new_size = size << 1;
-    memory = reinterpret_cast<Foo*>(kstd::platform::realloc_aligned(memory, size, new_size, foo_alignment));// NOLINT
+    memory =
+            reinterpret_cast<Foo*>(kstd::platform::mm::realloc_aligned(memory, size, new_size, foo_alignment));// NOLINT
     ASSERT_TRUE(memory != nullptr);
 
     ASSERT_EQ(memory->x, 1337);
@@ -76,5 +77,5 @@ TEST(kstd_platform, TestReAllocAligned) {
     ASSERT_EQ(memory->x, 1337);
     ASSERT_EQ(memory->y, 69);
 
-    kstd::platform::free_aligned(memory);
+    kstd::platform::mm::free_aligned(memory);
 }

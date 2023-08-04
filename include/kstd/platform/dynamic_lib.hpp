@@ -30,10 +30,10 @@ namespace kstd::platform {
         std::string _name;
         NativeModuleHandle _handle;
 
-        [[nodiscard]] auto get_function_address(std::string_view name) noexcept -> Result<void*>;
+        [[nodiscard]] auto get_function_address(const std::string& name) noexcept -> Result<void*>;
 
         public:
-        KSTD_NO_MOVE_COPY(DynamicLib)
+        KSTD_NO_MOVE_COPY(DynamicLib, DynamicLib)
 
         explicit DynamicLib(std::string name) noexcept;
 
@@ -44,14 +44,14 @@ namespace kstd::platform {
         [[nodiscard]] auto unload() noexcept -> Result<void>;
 
         template<typename R, typename... ARGS>
-        [[nodiscard]] inline auto get_function(std::string_view name) noexcept -> Result<R (*)(ARGS...)> {
+        [[nodiscard]] inline auto get_function(const std::string& name) noexcept -> Result<R (*)(ARGS...)> {
             auto address_result = get_function_address(name);
 
             if(!address_result) {
-                return address_result.forward_error<R (*)(ARGS...)>();
+                return address_result.forward<R (*)(ARGS...)>();
             }
 
-            return {reinterpret_cast<R (*)(ARGS...)>(*address_result)};// NOLINT
+            return reinterpret_cast<R (*)(ARGS...)>(*address_result);// NOLINT
         }
 
         [[nodiscard]] inline auto get_name() const noexcept -> const std::string& {

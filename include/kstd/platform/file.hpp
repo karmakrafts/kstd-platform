@@ -27,7 +27,7 @@
 #include "file_handle.hpp"
 #include "platform.hpp"
 
-namespace kstd::platform {
+namespace kstd::platform::file {
     enum class FileMode : u8 {
         READ,
         WRITE,
@@ -44,7 +44,7 @@ namespace kstd::platform {
 #endif
 
         public:
-        KSTD_NO_MOVE_COPY(File)
+        KSTD_NO_MOVE_COPY(File, File)
 
         explicit File(std::filesystem::path path, FileMode mode) noexcept;
 
@@ -94,4 +94,4 @@ namespace kstd::platform {
 
 #endif
     };
-}// namespace kstd::platform
+}// namespace kstd::platform::file

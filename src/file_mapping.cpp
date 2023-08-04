@@ -28,33 +28,32 @@
 #endif
 #endif
 
-namespace kstd::platform {
+namespace kstd::platform::mm {
     FileMapping::FileMapping(std::filesystem::path path, MappingAccess access) noexcept :
             MemoryMapping(MappingType::FILE, access),
-            _file(File(std::move(path), derive_file_mode(access))) {
+            _file {std::move(path), derive_file_mode(access)} {
     }
 
     auto FileMapping::soft_map() noexcept -> Result<void> {
         if(is_mapped()) {
-            return make_error<void>(
-                    std::string_view(fmt::format("Cannot map file {}: already mapped", _file.get_path().string())));
+            return Error {fmt::format("Cannot map file {}: already mapped", _file.get_path().string())};
         }
 
-        const auto is_readable = !(_access & MappingAccess::READ);
-        const auto is_writable = !(_access & MappingAccess::WRITE);
-        const auto is_executable = !(_access & MappingAccess::EXECUTE);
+        const auto is_readable = (_access & MappingAccess::READ) == MappingAccess::READ;
+        const auto is_writable = (_access & MappingAccess::WRITE) == MappingAccess::WRITE;
+        const auto is_executable = (_access & MappingAccess::EXECUTE) == MappingAccess::EXECUTE;
 
         if(is_executable && !_file.is_executable()) {
             if(const auto result = _file.set_executable(); !result) {
-                return result.forward_error<void>();
+                return result.forward<void>();
             }
         }
 
-        auto size = _file.get_size().unwrap_or(0);
+        auto size = _file.get_size().get_or(0);
 
         if(size == 0) {
             if(const auto result = _file.resize(1); !result) {
-                return result.forward_error<void>();
+                return result.forward<void>();
             }
 
             size = 1;// Make sure we map at least one byte of data
@@ -89,15 +88,15 @@ namespace kstd::platform {
                 ::CreateFileMappingW(_file.get_handle(), &_file.get_security_attribs(), map_prot, 0, 0, nullptr));
 
         if(!_handle.is_valid()) {
-            return make_error<void>(std::string_view(fmt::format("Could not open shared memory handle for {}: {}",
-                                                                 _file.get_path().string(), get_last_error())));
+            return Error {fmt::format("Could not open shared memory handle for {}: {}", _file.get_path().string(),
+                                      get_last_error())};
         }
 
         _address = ::MapViewOfFileEx(_handle, map_access, 0, 0, 0, nullptr);
 
         if(_address == nullptr) {
-            return make_error<void>(std::string_view(fmt::format("Could not map shared memory for {}: {}",
-                                                                 _file.get_path().string(), get_last_error())));
+            return Error {
+                    fmt::format("Could not map shared memory for {}: {}", _file.get_path().string(), get_last_error())};
         }
 #else
         i32 prot = 0;
@@ -121,8 +120,7 @@ namespace kstd::platform {
         _address = KSTD_MMAP(nullptr, size, prot, map_flags, _file.get_handle(), 0);
 
         if(_address == nullptr) {
-            return make_error<void>(std::string_view(
-                    fmt::format("Could not map file {}: {}", _file.get_path().string(), get_last_error())));
+            return Error {fmt::format("Could not map file {}: {}", _file.get_path().string(), get_last_error())};
         }
 #endif
 
@@ -131,28 +129,25 @@ namespace kstd::platform {
 
     auto FileMapping::soft_unmap() noexcept -> Result<void> {
         if(!is_mapped()) {
-            return make_error<void>(
-                    std::string_view(fmt::format("Cannot unmap file {}: not mapped", _file.get_path().string())));
+            return Error {fmt::format("Cannot unmap file {}: not mapped", _file.get_path().string())};
         }
 
 #ifdef PLATFORM_WINDOWS
         if(::UnmapViewOfFile(_address) == 0 || ::CloseHandle(_handle) == 0) {
-            return make_error<void>(std::string_view(
-                    fmt::format("Cannot unmap shared memory {}: {}", _file.get_path().string(), get_last_error())));
+            return Error {
+                    fmt::format("Cannot unmap shared memory {}: {}", _file.get_path().string(), get_last_error())};
         }
 
-        _handle = FileHandle();
+        _handle = {};
 #else
-        const auto size = _file.get_size().unwrap_or(0);
+        const auto size = _file.get_size().get_or(0);
 
         if(size == 0) {
-            return make_error<void>(
-                    std::string_view(fmt::format("Cannot unmap zero-size file {}", _file.get_path().string())));
+            return Error {fmt::format("Cannot unmap zero-size file {}", _file.get_path().string())};
         }
 
         if(::munmap(_address, size) == -1) {
-            return make_error<void>(std::string_view(
-                    fmt::format("Cannot unmap file {}: {}", _file.get_path().string(), get_last_error())));
+            return Error {fmt::format("Cannot unmap file {}: {}", _file.get_path().string(), get_last_error())};
         }
 #endif
 
@@ -162,7 +157,7 @@ namespace kstd::platform {
 
     auto FileMapping::map() noexcept -> Result<void> {
         if(const auto result = _file.open(); !result) {
-            return result.forward_error<void>();
+            return result.forward<void>();
         }
 
         return soft_map();
@@ -170,7 +165,7 @@ namespace kstd::platform {
 
     auto FileMapping::unmap() noexcept -> Result<void> {
         if(const auto result = soft_unmap(); !result) {
-            return result.forward_error<void>();
+            return result.forward<void>();
         }
 
         return _file.close();
@@ -181,17 +176,17 @@ namespace kstd::platform {
 
         if(mapped) {
             if(const auto result = soft_unmap(); !result) {
-                return result.forward_error<void>();
+                return result.forward<void>();
             }
         }
 
         if(const auto result = _file.resize(size); !result) {
-            return result.forward_error<void>();
+            return result.forward<void>();
         }
 
         if(mapped) {
             if(const auto result = soft_map(); !result) {
-                return result.forward_error<void>();
+                return result.forward<void>();
             }
         }
 
@@ -200,8 +195,7 @@ namespace kstd::platform {
 
     auto FileMapping::sync() noexcept -> Result<void> {
         if(!is_mapped()) {
-            return make_error<void>(std::string_view(
-                    fmt::format("Cannot synchronize memory to file {}: not mapped", _file.get_path().string())));
+            return Error {fmt::format("Cannot synchronize memory to file {}: not mapped", _file.get_path().string())};
         }
 
 #ifdef PLATFORM_WINDOWS
@@ -209,14 +203,14 @@ namespace kstd::platform {
         auto size_result = _file.get_size();
 
         if(!size_result) {
-            return size_result.forward_error<void>();
+            return size_result.forward<void>();
         }
 
-        if(::msync(_address, size_result.unwrap(), MS_SYNC) != 0) {
-            return make_error<void>(std::string_view(fmt::format("Could not sync mapping: {}", get_last_error())));
+        if(::msync(_address, *size_result, MS_SYNC) != 0) {
+            return Error {fmt::format("Could not sync mapping: {}", get_last_error())};
         }
 #endif
 
         return {};
     }
-}// namespace kstd::platform
+}// namespace kstd::platform::mm

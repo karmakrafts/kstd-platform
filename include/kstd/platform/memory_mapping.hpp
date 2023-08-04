@@ -20,71 +20,37 @@
 #pragma once
 
 #include "file.hpp"
+#include <kstd/bitflags.hpp>
 #include <kstd/defaults.hpp>
 #include <kstd/result.hpp>
 #include <kstd/types.hpp>
 
-namespace kstd::platform {
+namespace kstd::platform::mm {
     enum class MappingType : u8 {
         NAMED,
         FILE
     };
 
-    enum class MappingAccess : u8 {
-        READ = 0x01U,
-        WRITE = 0x02U,
-        EXECUTE = 0x04U
-    };
+    KSTD_BITFLAGS(u8, MappingAccess, READ = 0x01U, WRITE = 0x02U, EXECUTE = 0x04U)// NOLINT
 
-    [[nodiscard]] inline auto operator|(MappingAccess a, MappingAccess b) noexcept -> MappingAccess {
-        return static_cast<MappingAccess>(static_cast<u8>(a) | static_cast<u8>(b));
-    }
-
-    [[nodiscard]] inline auto operator|=(MappingAccess& a, MappingAccess b) noexcept -> MappingAccess {
-        a = a | b;
-        return a;
-    }
-
-    [[nodiscard]] inline auto operator&(MappingAccess a, MappingAccess b) noexcept -> MappingAccess {
-        return static_cast<MappingAccess>(static_cast<u8>(a) & static_cast<u8>(b));
-    }
-
-    [[nodiscard]] inline auto operator&=(MappingAccess& a, MappingAccess b) noexcept -> MappingAccess {
-        a = a & b;
-        return a;
-    }
-
-    [[nodiscard]] inline auto operator^(MappingAccess a, MappingAccess b) noexcept -> MappingAccess {
-        return static_cast<MappingAccess>(static_cast<u8>(a) ^ static_cast<u8>(b));
-    }
-
-    [[nodiscard]] inline auto operator^=(MappingAccess& a, MappingAccess b) noexcept -> MappingAccess {
-        a = a ^ b;
-        return a;
-    }
-
-    [[nodiscard]] inline auto operator!(MappingAccess access) noexcept -> bool {
-        return static_cast<u8>(access) != 0;
-    }
-
-    [[nodiscard]] inline auto derive_file_mode(MappingAccess access) noexcept -> FileMode {
-        const auto is_readable = !(access & MappingAccess::READ);
-        const auto is_writable = !(access & MappingAccess::WRITE);
+    [[nodiscard]] inline auto derive_file_mode(MappingAccess access) noexcept -> file::FileMode {
+        const auto is_readable = (access & MappingAccess::READ) == MappingAccess::READ;
+        const auto is_writable = (access & MappingAccess::WRITE) == MappingAccess::WRITE;
 
         if(is_readable && is_writable) {
-            return FileMode::READ_WRITE;
+            return file::FileMode::READ_WRITE;
         }
         else if(is_writable) {// NOLINT
-            return FileMode::READ;
+            return file::FileMode::READ;
         }
 
-        return FileMode::WRITE;
+        return file::FileMode::WRITE;
     }
 
-    [[nodiscard]] inline auto derive_access(FileMode mode) noexcept -> MappingAccess {
+    [[nodiscard]] inline auto derive_access(file::FileMode mode) noexcept -> MappingAccess {
         switch(mode) {
-            case FileMode::WRITE: return MappingAccess::WRITE;
-            case FileMode::READ_WRITE: return MappingAccess::READ | MappingAccess::WRITE;
+            case file::FileMode::WRITE: return MappingAccess::WRITE;
+            case file::FileMode::READ_WRITE: return MappingAccess::READ | MappingAccess::WRITE;
             default: return MappingAccess::READ;
         }
     }
@@ -102,7 +68,7 @@ namespace kstd::platform {
         }
 
         public:
-        KSTD_NO_MOVE_COPY(MemoryMapping)
+        KSTD_NO_MOVE_COPY(MemoryMapping, MemoryMapping)
 
         virtual ~MemoryMapping() noexcept = default;
 
@@ -130,4 +96,4 @@ namespace kstd::platform {
             return _address != nullptr;
         }
     };
-}// namespace kstd::platform
+}// namespace kstd::platform::mm

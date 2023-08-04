@@ -32,25 +32,23 @@
 
 namespace kstd::platform {
     DynamicLib::DynamicLib(std::string name) noexcept :
-            _name(utils::move(name)),
-            _handle(nullptr) {
+            _name {std::move(name)},
+            _handle {nullptr} {
     }
 
     auto DynamicLib::load() noexcept -> Result<void> {
 #ifdef PLATFORM_WINDOWS
-        const auto wide_name = utils::to_utf16(_name);
+        const auto wide_name = utils::to_wcs(_name);
         _handle = ::LoadLibraryW(wide_name.data());
 
         if(_handle == nullptr) {
-            return make_error<void>(
-                    std::string_view(fmt::format("Could not open DLL {}: {}", _name, get_last_error())));
+            return Error {fmt::format("Could not open DLL {}: {}", _name, get_last_error())};
         }
 #else
         _handle = ::dlopen(_name.c_str(), RTLD_LAZY);
 
         if(_handle == nullptr) {
-            return make_error<void>(
-                    std::string_view(fmt::format("Could not open shared object {}: {}", _name, get_last_error())));
+            return Error {fmt::format("Could not open shared object {}: {}", _name, get_last_error())};
         }
 #endif
 
@@ -60,20 +58,18 @@ namespace kstd::platform {
     auto DynamicLib::unload() noexcept -> Result<void> {
 #ifdef PLATFORM_WINDOWS
         if(::FreeLibrary(_handle) == FALSE) {
-            return make_error<void>(
-                    std::string_view(fmt::format("Could not close DLL {}: {}", _name, get_last_error())));
+            return Error {fmt::format("Could not close DLL {}: {}", _name, get_last_error())};
         }
 #else
         if(::dlclose(_handle) != 0) {
-            return make_error<void>(
-                    std::string_view(fmt::format("Could not close shared object {}: {}", _name, get_last_error())));
+            return Error {fmt::format("Could not close shared object {}: {}", _name, get_last_error())};
         }
 #endif
 
         return {};
     }
 
-    auto DynamicLib::get_function_address(std::string_view name) noexcept -> Result<void*> {
+    auto DynamicLib::get_function_address(const std::string& name) noexcept -> Result<void*> {
 #ifdef PLATFORM_WINDOWS
         auto* address = ::GetProcAddress(_handle, name.data());
 #else
@@ -81,10 +77,9 @@ namespace kstd::platform {
 #endif
 
         if(address == nullptr) {
-            return make_error<void*>(std::string_view(
-                    fmt::format("Could not resolve function {} in {}: {}", name, _name, get_last_error())));
+            return Error {fmt::format("Could not resolve function {} in {}: {}", name, _name, get_last_error())};
         }
 
-        return make_ok(reinterpret_cast<void*>(address));// NOLINT
+        return reinterpret_cast<void*>(address);// NOLINT
     }
 }// namespace kstd::platform

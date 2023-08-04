@@ -22,9 +22,9 @@
 #include "memory_mapping.hpp"
 #include <filesystem>
 
-namespace kstd::platform {
+namespace kstd::platform::mm {
     class FileMapping final : public MemoryMapping {
-        File _file;
+        file::File _file;
 
 #ifdef PLATFORM_WINDOWS
         FileHandle _handle {};
@@ -35,7 +35,7 @@ namespace kstd::platform {
         [[nodiscard]] auto soft_unmap() noexcept -> Result<void>;
 
         public:
-        KSTD_NO_MOVE_COPY(FileMapping)
+        KSTD_NO_MOVE_COPY(FileMapping, FileMapping)
 
         FileMapping(std::filesystem::path path, MappingAccess access) noexcept;
 
@@ -49,16 +49,16 @@ namespace kstd::platform {
 
         [[nodiscard]] auto sync() noexcept -> Result<void> final;
 
-        [[nodiscard]] inline auto get_file() const noexcept -> const File& {
+        [[nodiscard]] inline auto get_file() const noexcept -> const file::File& {
             return _file;
         }
 
 #ifdef PLATFORM_WINDOWS
 
-        [[nodiscard]] inline auto get_handle() const noexcept -> FileHandle {
+        [[nodiscard]] inline auto get_handle() const noexcept -> file::FileHandle {
             return _handle;
         }
 
 #endif
     };
-}// namespace kstd::platform
+}// namespace kstd::platform::mm

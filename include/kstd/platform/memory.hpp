@@ -36,7 +36,7 @@
 #include <sys/mman.h>
 #endif
 
-namespace kstd::platform {
+namespace kstd::platform::mm {
     [[nodiscard]] inline auto get_usable_size(void* memory) noexcept -> usize {
 #if defined(PLATFORM_WINDOWS)
         return _msize(memory);
@@ -76,4 +76,4 @@ namespace kstd::platform {
         return new_memory;
 #endif
     }
-}// namespace kstd::platform
+}// namespace kstd::platform::mm

@@ -42,48 +42,46 @@ namespace kstd::platform {
     }
 
     auto Process::get_path() const noexcept -> Result<std::filesystem::path> {
-        using namespace std::string_view_literals;
         std::array<char, KSTD_MAX_PATH> buffer {};
 
 #ifdef PLATFORM_WINDOWS
         auto handle_result = open_handle();// This handle will be automatically disposed
 
         if(!handle_result) {
-            return handle_result.forward_error<std::filesystem::path>();
+            return handle_result.forward<std::filesystem::path>();
         }
 
-        GetProcessImageFileNameA(*handle_result, buffer.data(), MAX_PATH);
+        ::GetProcessImageFileNameA(*handle_result, buffer.data(), MAX_PATH);
         std::string path(buffer.data());
 
-        static auto s_pattern = std::regex(R"(\\\\Device\\\\HarddiskVolume[0-9]+\\\\)");
+        static std::regex s_pattern {R"(\\\\Device\\\\HarddiskVolume[0-9]+\\\\)"};
         std::smatch match;
 
         if(!std::regex_search(path, match, s_pattern)) {
-            return make_error<std::filesystem::path>("Could not find device match for kernel path"sv);
+            return Error {"Could not find device match for kernel path"};
         }
 
         auto device_path = match[0].str();
         // TODO: ...
-        return make_ok(std::filesystem::path("C:\\"));
+        return std::filesystem::path {"C:\\"};
 #else
         auto exe_path = fmt::format("/proc/{}/exe", _id);
         if(::readlink(exe_path.c_str(), buffer.data(), KSTD_MAX_PATH) == -1) {
-            return make_error<std::filesystem::path>(std::string_view(get_last_error()));
+            return Error {get_last_error()};
         }
-        return make_ok(std::filesystem::path(buffer.data()));
+        return std::filesystem::path {buffer.data()};
 #endif
     }
 
     auto Process::open_handle() const noexcept -> Result<ProcessHandle> {
-        using namespace std::string_view_literals;
 #ifdef PLATFORM_WINDOWS
         HANDLE handle = ::OpenProcess(PROCESS_ALL_ACCESS, FALSE, _id);
         if(handle == nullptr) {
-            return make_error<ProcessHandle>("Could not open process handle"sv);
+            return Error {"Could not open process handle"};
         }
-        return make_ok(ProcessHandle(handle));
+        return ProcessHandle {handle};
 #else
-        return make_ok(ProcessHandle(_id));
+        return ProcessHandle {_id};
 #endif
     }
 }// namespace kstd::platform

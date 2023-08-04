@@ -34,7 +34,7 @@ namespace kstd::platform {
         }
 
         public:
-        KSTD_DEFAULT_MOVE_COPY(Process)
+        KSTD_DEFAULT_MOVE_COPY(Process, Process)
 
         ~Process() noexcept = default;
 

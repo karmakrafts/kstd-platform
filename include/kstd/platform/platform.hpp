@@ -109,7 +109,7 @@ namespace kstd::platform {
         const auto new_length = ::FormatMessageW(
                 FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr,
                 error_code, lang_id, reinterpret_cast<LPWSTR>(&buffer), 0, nullptr);
-        auto message = utils::to_utf8(std::wstring(buffer, new_length));
+        auto message = utils::to_mbs({buffer, new_length});
         LocalFree(buffer);
 
         return fmt::format("ERROR 0x{:X}: {}", error_code, message);

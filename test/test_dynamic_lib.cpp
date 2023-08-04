@@ -21,26 +21,26 @@
 #include <kstd/platform/dynamic_lib.hpp>
 
 #if defined(PLATFORM_WINDOWS)
-#define LIB_C_NAME "msvcrt.dll"
+constexpr auto lib_name = "msvcrt.dll";
 #elif defined(PLATFORM_APPLE)
-#define LIB_C_NAME "libSystem.dylib"
+constexpr auto lib_name = "libSystem.dylib";
 #else
-#define LIB_C_NAME "libc.so.6"
+constexpr auto lib_name = "libc.so.6";
 #endif
 
 TEST(kstd_platform_DynamicLibrary, TestLoadUnload) {
-    auto lib = kstd::platform::DynamicLib(LIB_C_NAME);
-    ASSERT_NO_FATAL_FAILURE(*lib.load());
-    ASSERT_NO_FATAL_FAILURE(*lib.unload());
+    auto lib = kstd::platform::DynamicLib(lib_name);
+    ASSERT_TRUE(lib.load().is_ok());
+    ASSERT_TRUE(lib.unload().is_ok());
 }
 
 TEST(kstd_platform_DynamicLibrary, TestCallFunction) {
-    auto lib = kstd::platform::DynamicLib(LIB_C_NAME);
-    ASSERT_NO_FATAL_FAILURE(*lib.load());
+    auto lib = kstd::platform::DynamicLib(lib_name);
+    ASSERT_TRUE(lib.load().is_ok());
 
     auto result = lib.get_function<kstd::i32, const char*, const char*>("printf");
     ASSERT_TRUE(result);
     (*result)("%s", "Hello World!\n");
 
-    ASSERT_NO_THROW(*lib.unload());
+    ASSERT_TRUE(lib.unload().is_ok());
 }
