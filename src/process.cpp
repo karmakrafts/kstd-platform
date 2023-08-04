@@ -32,6 +32,10 @@
 #define KSTD_MAX_PATH PATH_MAX
 #endif
 
+#ifdef PLATFORM_APPLE
+#include <libproc.h>
+#endif
+
 namespace kstd::platform {
     auto Process::get_current() noexcept -> Process {
 #ifdef PLATFORM_WINDOWS
@@ -42,24 +46,26 @@ namespace kstd::platform {
     }
 
     auto Process::get_path() const noexcept -> Result<std::filesystem::path> {
-#ifdef PLATFORM_WINDOWS
+#if defined(PLATFORM_WINDOWS)
         std::array<wchar_t, KSTD_MAX_PATH> buffer {};
         auto handle_result = open_handle();// This handle will be automatically disposed
-
         if(!handle_result) {
             return handle_result.forward<std::filesystem::path>();
         }
-
         ::GetModuleFileNameExW(*handle_result, 0, buffer.data(), MAX_PATH);
-        return std::filesystem::path {buffer.data()};
+#elif defined(PLATFORM_APPLE)
+        std::array<char, KSTD_MAX_PATH> buffer {};
+        if(::proc_pidpath(_id, buffer.data(), KSTD_MAX_PATH) != 0) {
+            return Error {get_last_error()};
+        }
 #else
         std::array<char, KSTD_MAX_PATH> buffer {};
         auto exe_path = fmt::format("/proc/{}/exe", _id);
         if(::readlink(exe_path.c_str(), buffer.data(), KSTD_MAX_PATH) == -1) {
             return Error {get_last_error()};
         }
-        return std::filesystem::path {buffer.data()};
 #endif
+        return std::filesystem::path {buffer.data()};
     }
 
     auto Process::open_handle() const noexcept -> Result<ProcessHandle> {
