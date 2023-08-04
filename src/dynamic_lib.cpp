@@ -38,15 +38,12 @@ namespace kstd::platform {
 
     auto DynamicLib::load() noexcept -> Result<void> {
 #ifdef PLATFORM_WINDOWS
-        const auto wide_name = utils::to_wcs(_name);
-        _handle = ::LoadLibraryW(wide_name.data());
-
+        _handle = ::LoadLibraryW(utils::to_wcs(_name).data());
         if(_handle == nullptr) {
             return Error {fmt::format("Could not open DLL {}: {}", _name, get_last_error())};
         }
 #else
         _handle = ::dlopen(_name.c_str(), RTLD_LAZY);
-
         if(_handle == nullptr) {
             return Error {fmt::format("Could not open shared object {}: {}", _name, get_last_error())};
         }

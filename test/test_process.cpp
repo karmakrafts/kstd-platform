@@ -22,9 +22,6 @@
 #include <iostream>
 #include <kstd/platform/process.hpp>
 
-TEST(kstd_platform_Process, TestFind) {
-}
-
 TEST(kstd_platform_Process, TestCurrent) {
     auto proc = kstd::platform::Process::get_current();
 
@@ -39,9 +36,6 @@ TEST(kstd_platform_Process, TestGetPath) {
     auto path_result = proc.get_path();
     ASSERT_TRUE(path_result);
 
-    std::cout << fmt::format("Current Path: {}\n", path_result->c_str());
+    std::cout << fmt::format("Current Path: {}\n", path_result->string());
     ASSERT_FALSE(path_result->empty());
-}
-
-TEST(kstd_platform_Process, TestOpenHandle) {
 }
