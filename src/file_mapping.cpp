@@ -31,7 +31,7 @@
 namespace kstd::platform::mm {
     FileMapping::FileMapping(std::filesystem::path path, MappingAccess access) noexcept :
             MemoryMapping(MappingType::FILE, access),
-            _file {std::move(path), derive_file_mode(access)} {
+            _file {file::File {std::move(path), derive_file_mode(access)}} {
     }
 
     auto FileMapping::soft_map() noexcept -> Result<void> {
@@ -84,8 +84,7 @@ namespace kstd::platform::mm {
             map_access |= FILE_MAP_EXECUTE;
         }
 
-        _handle = FileHandle(
-                ::CreateFileMappingW(_file.get_handle(), &_file.get_security_attribs(), map_prot, 0, 0, nullptr));
+        _handle = ::CreateFileMappingW(_file.get_handle(), &_file.get_security_attribs(), map_prot, 0, 0, nullptr);
 
         if(!_handle.is_valid()) {
             return Error {fmt::format("Could not open shared memory handle for {}: {}", _file.get_path().string(),

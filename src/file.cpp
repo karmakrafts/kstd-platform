@@ -163,9 +163,9 @@ namespace kstd::platform::file {
 
     auto File::is_executable() const noexcept -> Result<bool> {
 #ifdef PLATFORM_WINDOWS
-        const auto wide_path = utils::to_utf16(_path.string());
+        const auto wide_path = utils::to_wcs(_path.string());
         DWORD type = 0;
-        return make_ok<bool>(::GetBinaryTypeW(wide_path.data(), &type));
+        return ::GetBinaryTypeW(wide_path.data(), &type);
 #else
         if(!is_open()) {
             return Error {fmt::format("Could not stat file {}: not opened", _path.string())};
