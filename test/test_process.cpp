@@ -38,9 +38,9 @@ TEST(kstd_platform_Process, TestGetPath) {
 
     auto path_result = proc.get_path();
     ASSERT_TRUE(path_result);
-    ASSERT_FALSE(path_result->empty());
 
     std::cout << fmt::format("Current Path: {}\n", path_result->c_str());
+    ASSERT_FALSE(path_result->empty());
 }
 
 TEST(kstd_platform_Process, TestOpenHandle) {

@@ -55,7 +55,7 @@ namespace kstd::platform {
         ::GetModuleFileNameExW(*handle_result, 0, buffer.data(), MAX_PATH);
 #elif defined(PLATFORM_APPLE)
         std::array<char, KSTD_MAX_PATH> buffer {};
-        if(::proc_pidpath(_id, buffer.data(), KSTD_MAX_PATH) != 0) {
+        if(::proc_pidpath(_id, buffer.data(), KSTD_MAX_PATH) < 0) {
             return Error {get_last_error()};
         }
 #else
