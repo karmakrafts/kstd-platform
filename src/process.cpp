@@ -48,7 +48,7 @@ namespace kstd::platform {
 #ifdef PLATFORM_WINDOWS
             _handle {::OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid)}
 #else
-            _handle {pid};
+            _handle {pid}
 #endif
     {
 #ifdef PLATFORM_WINDOWS
@@ -104,12 +104,12 @@ namespace kstd::platform {
         }
 #elif defined(PLATFORM_APPLE)
         std::array<char, max_path> buffer {};
-        if(::proc_pidpath(_id, buffer.data(), max_path) < 0) {
+        if(::proc_pidpath(_pid, buffer.data(), max_path) < 0) {
             return Error {get_last_error()};
         }
 #else
         std::array<char, max_path> buffer {};
-        auto exe_path = fmt::format("/proc/{}/exe", _id);
+        auto exe_path = fmt::format("/proc/{}/exe", _pid);
         if(::readlink(exe_path.c_str(), buffer.data(), max_path) == -1) {
             return Error {get_last_error()};
         }
