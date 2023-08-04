@@ -25,15 +25,15 @@
 #ifdef PLATFORM_WINDOWS
 
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <Windows.h>
 #include <sysinfoapi.h>
-#undef min// Make sure this is not defined, no matter what
-#undef max// Make sure this is not defined, no matter what
 
 #else
 
 #include <fcntl.h>
 #include <unistd.h>
+
 
 #endif
 
@@ -57,6 +57,12 @@ namespace kstd::platform {
 #else
     using NativeOffset = __off_t;
 #endif
+#endif
+
+#ifdef PLATFORM_WINDOWS
+    constexpr usize max_path = MAX_PATH;
+#else
+    constexpr usize max_path = PATH_MAX;
 #endif
 
     [[nodiscard]] inline auto invalid_file_handle() noexcept -> NativeFileHandle {
