@@ -27,7 +27,7 @@ namespace kstd::platform::mm {
         file::File _file;
 
 #ifdef PLATFORM_WINDOWS
-        FileHandle _handle {};
+        file::FileHandle _handle {};
 #endif
 
         [[nodiscard]] auto soft_map() noexcept -> Result<void>;

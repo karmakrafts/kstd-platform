@@ -70,9 +70,10 @@ namespace kstd::platform {
 
     auto Process::open_handle() const noexcept -> Result<ProcessHandle> {
 #ifdef PLATFORM_WINDOWS
+        using namespace std::string_literals;
         HANDLE handle = ::OpenProcess(PROCESS_ALL_ACCESS, FALSE, _id);
         if(handle == nullptr) {
-            return Error {"Could not open process handle"};
+            return Error {"Could not open process handle"s};
         }
         return ProcessHandle {handle};
 #else
