@@ -27,25 +27,22 @@
 
 namespace kstd::platform {
     class Process final {
-        NativeProcessId _id;
-
-        inline Process(NativeProcessId id) noexcept :// NOLINT
-                _id(id) {
-        }
+        NativeProcessId _pid;
+        NativeProcessHandle _handle;
 
         public:
         KSTD_DEFAULT_MOVE_COPY(Process, Process)
 
+        Process(NativeProcessId pid);
+
         ~Process() noexcept = default;
 
-        [[nodiscard]] static auto get_current() noexcept -> Process;
+        [[nodiscard]] static auto get_current() noexcept -> Result<Process>;
 
         [[nodiscard]] auto get_path() const noexcept -> Result<std::filesystem::path>;
 
-        [[nodiscard]] auto open_handle(bool all_access = false) const noexcept -> Result<ProcessHandle>;
-
-        [[nodiscard]] constexpr auto get_id() const noexcept -> NativeProcessId {
-            return _id;
+        [[nodiscard]] constexpr auto get_pid() const noexcept -> NativeProcessId {
+            return _pid;
         }
     };
 }// namespace kstd::platform

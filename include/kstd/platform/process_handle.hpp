@@ -37,35 +37,4 @@ namespace kstd::platform {
     using NativeProcessId = pid_t;
     using NativeProcessHandle = pid_t;
 #endif
-
-    class ProcessHandle final {
-        NativeProcessHandle _value;
-
-        public:
-        KSTD_DEFAULT_MOVE_COPY(ProcessHandle, ProcessHandle)
-
-        ProcessHandle(NativeProcessHandle value) noexcept :// NOLINT
-                _value {value} {
-        }
-
-#ifdef PLATFORM_WINDOWS
-        ~ProcessHandle() noexcept {
-            ::CloseHandle(_value);// On windows, we need to drop the handle ourselves
-        }
-#else
-        ~ProcessHandle() noexcept = default;
-#endif
-
-        [[nodiscard]] inline operator NativeProcessHandle() const noexcept {// NOLINT
-            return _value;
-        }
-
-        [[nodiscard]] inline auto operator==(const ProcessHandle& other) const noexcept -> bool {
-            return _value == other._value;
-        }
-
-        [[nodiscard]] inline auto operator!=(const ProcessHandle& other) const noexcept -> bool {
-            return _value != other._value;
-        }
-    };
 }// namespace kstd::platform

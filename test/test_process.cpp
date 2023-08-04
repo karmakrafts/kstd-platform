@@ -23,15 +23,19 @@
 #include <kstd/platform/process.hpp>
 
 TEST(kstd_platform_Process, TestCurrent) {
-    auto proc = kstd::platform::Process::get_current();
+    auto proc_result = kstd::platform::Process::get_current();
+    ASSERT_TRUE(proc_result);
+    auto& proc = *proc_result;
 
-    const auto id = proc.get_id();
-    std::cout << fmt::format("Current PID: {}\n", id);
-    ASSERT_NE(id, 0);
+    const auto pid = proc.get_pid();
+    std::cout << fmt::format("Current PID: {}\n", pid);
+    ASSERT_NE(pid, 0);
 }
 
 TEST(kstd_platform_Process, TestGetPath) {
-    auto proc = kstd::platform::Process::get_current();
+    auto proc_result = kstd::platform::Process::get_current();
+    ASSERT_TRUE(proc_result);
+    auto& proc = *proc_result;
 
     auto path_result = proc.get_path();
     ASSERT_TRUE(path_result);

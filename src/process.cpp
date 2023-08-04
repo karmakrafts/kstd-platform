@@ -21,6 +21,7 @@
 
 #include <array>
 #include <fmt/format.h>
+#include <kstd/safe_alloc.hpp>
 #include <kstd/utils.hpp>
 
 #if defined(PLATFORM_WINDOWS)
@@ -31,22 +32,33 @@
 #endif
 
 namespace kstd::platform {
-    auto Process::get_current() noexcept -> Process {
+    Process::Process(const kstd::platform::NativeProcessId pid) :
+            _pid {pid},
 #ifdef PLATFORM_WINDOWS
-        return {::GetCurrentProcessId()};
+            _handle {::OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, _pid)}
 #else
-        return {::getpid()};
+            _handle {pid};
+#endif
+    {
+#ifdef PLATFORM_WINDOWS
+        if(_handle == nullptr) {
+            throw std::runtime_error(fmt::format("Could not open process handle: {}", get_last_error()));
+        }
+#endif
+    }
+
+    auto Process::get_current() noexcept -> Result<Process> {
+#ifdef PLATFORM_WINDOWS
+        return try_construct<Process>(::GetCurrentProcessId());
+#else
+        return try_construct<Process>(::getpid());
 #endif
     }
 
     auto Process::get_path() const noexcept -> Result<std::filesystem::path> {
 #if defined(PLATFORM_WINDOWS)
         std::array<wchar_t, max_path> buffer {};
-        auto handle_result = open_handle();// This handle will be automatically disposed
-        if(!handle_result) {
-            return handle_result.forward<std::filesystem::path>();
-        }
-        if(::GetModuleFileNameExW(*handle_result, 0, buffer.data(), MAX_PATH) == 0) {
+        if(::GetModuleFileNameExW(_handle, ::GetModuleHandleW(nullptr), buffer.data(), MAX_PATH) == 0) {
             return Error {fmt::format("Could not retrieve process path: {}", get_last_error())};
         }
 #elif defined(PLATFORM_APPLE)
@@ -62,19 +74,5 @@ namespace kstd::platform {
         }
 #endif
         return std::filesystem::path {buffer.data()};
-    }
-
-    auto Process::open_handle(bool all_access) const noexcept -> Result<ProcessHandle> {
-#ifdef PLATFORM_WINDOWS
-        using namespace std::string_literals;
-        const auto flags = all_access ? PROCESS_ALL_ACCESS : PROCESS_QUERY_INFORMATION | PROCESS_VM_READ;
-        HANDLE handle = ::OpenProcess(flags, FALSE, _id);
-        if(handle == nullptr) {
-            return Error {"Could not open process handle"s};
-        }
-        return ProcessHandle {handle};
-#else
-        return ProcessHandle {_id};
-#endif
     }
 }// namespace kstd::platform
