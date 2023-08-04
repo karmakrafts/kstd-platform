@@ -20,22 +20,40 @@
 #pragma once
 
 #include "platform.hpp"
-#include "process_handle.hpp"
 #include <filesystem>
 #include <kstd/defaults.hpp>
 #include <kstd/result.hpp>
 
+#ifdef PLATFORM_WINDOWS
+#include <processthreadsapi.h>
+#else
+#include <sys/types.h>
+#include <unistd.h>
+#endif
+
 namespace kstd::platform {
+#ifdef PLATFORM_WINDOWS
+    using NativeProcessId = DWORD;
+    using NativeProcessHandle = HANDLE;
+#else
+    using NativeProcessId = pid_t;
+    using NativeProcessHandle = pid_t;
+#endif
+
     class Process final {
         NativeProcessId _pid;
         NativeProcessHandle _handle;
 
         public:
-        KSTD_DEFAULT_MOVE_COPY(Process, Process)
+        Process(const Process& other) noexcept;
+        Process(Process&& other) noexcept;
 
         Process(NativeProcessId pid);
 
-        ~Process() noexcept = default;
+        ~Process() noexcept;
+
+        auto operator=(const Process& other) noexcept -> Process&;
+        auto operator=(Process&& other) noexcept -> Process&;
 
         [[nodiscard]] static auto get_current() noexcept -> Result<Process>;
 

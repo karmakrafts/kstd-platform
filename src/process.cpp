@@ -22,7 +22,6 @@
 #include <array>
 #include <fmt/format.h>
 #include <kstd/safe_alloc.hpp>
-#include <kstd/utils.hpp>
 
 #if defined(PLATFORM_WINDOWS)
 #include <Psapi.h>
@@ -32,17 +31,59 @@
 #endif
 
 namespace kstd::platform {
+    Process::Process(const Process& other) noexcept :
+            Process(other._pid) {
+    }
+
+    Process::Process(Process&& other) noexcept :
+            _pid {other._pid},
+            _handle {other._handle} {
+#ifdef PLATFORM_WINDOWS
+        other._handle = INVALID_HANDLE_VALUE;
+#endif
+    }
+
     Process::Process(const kstd::platform::NativeProcessId pid) :
             _pid {pid},
 #ifdef PLATFORM_WINDOWS
-            _handle {::OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, _pid)}
+            _handle {::OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid)}
 #else
             _handle {pid};
 #endif
     {
 #ifdef PLATFORM_WINDOWS
-        if(_handle == nullptr) {
+        if(_handle == INVALID_HANDLE_VALUE) {
             throw std::runtime_error(fmt::format("Could not open process handle: {}", get_last_error()));
+        }
+#endif
+    }
+
+    auto Process::operator=(const Process& other) noexcept -> Process& {
+        _pid = other._pid;
+#ifdef PLATFORM_WINDOWS
+        _handle = ::OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, _pid);
+        if(_handle == INVALID_HANDLE_VALUE) {
+            throw std::runtime_error(fmt::format("Could not open process handle: {}", get_last_error()));
+        }
+#else
+        _handle = _pid;
+#endif
+        return *this;
+    }
+
+    auto Process::operator=(Process&& other) noexcept -> Process& {
+        _pid = other._pid;
+        _handle = other._handle;
+#ifdef PLATFORM_WINDOWS
+        other._handle = INVALID_HANDLE_VALUE;
+#endif
+        return *this;
+    }
+
+    Process::~Process() noexcept {
+#ifdef PLATFORM_WINDOWS
+        if(_handle != INVALID_HANDLE_VALUE) {
+            ::CloseHandle(_handle);
         }
 #endif
     }
