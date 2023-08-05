@@ -28,7 +28,7 @@ struct alignas(foo_alignment) Foo final {
     kstd::u16 y;
 };
 
-TEST(kstd_platform, TestGetUsableSize) {
+TEST(kstd_platform, test_get_usable_size) {
     constexpr auto size = sizeof(void*) << 1;
     auto* memory = kstd::libc::malloc(size);// NOLINT
     ASSERT_TRUE(memory != nullptr);
@@ -36,7 +36,7 @@ TEST(kstd_platform, TestGetUsableSize) {
     kstd::libc::free(memory);// NOLINT
 }
 
-TEST(kstd_platform, TestAllocateAligned) {
+TEST(kstd_platform, test_allocate_aligned) {
     constexpr auto size = sizeof(Foo);
     auto* memory = reinterpret_cast<Foo*>(kstd::platform::mm::alloc_aligned(size, foo_alignment));// NOLINT
     ASSERT_TRUE(memory != nullptr);
@@ -49,7 +49,7 @@ TEST(kstd_platform, TestAllocateAligned) {
     kstd::platform::mm::free_aligned(memory);
 }
 
-TEST(kstd_platform, TestReAllocAligned) {
+TEST(kstd_platform, test_realloc_aligned) {
     constexpr auto size = sizeof(Foo);
     auto* memory = reinterpret_cast<Foo*>(kstd::platform::mm::alloc_aligned(size, foo_alignment));// NOLINT
     ASSERT_TRUE(memory != nullptr);

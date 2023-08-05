@@ -28,13 +28,13 @@ constexpr auto lib_name = "libSystem.dylib";
 constexpr auto lib_name = "libc.so.6";
 #endif
 
-TEST(kstd_platform_DynamicLibrary, TestLoadUnload) {
+TEST(kstd_platform_DynamicLibrary, test_load_unload) {
     auto lib = kstd::platform::DynamicLib(lib_name);
     ASSERT_TRUE(lib.load().is_ok());
     ASSERT_TRUE(lib.unload().is_ok());
 }
 
-TEST(kstd_platform_DynamicLibrary, TestCallFunction) {
+TEST(kstd_platform_DynamicLibrary, test_call_function) {
     auto lib = kstd::platform::DynamicLib(lib_name);
     ASSERT_TRUE(lib.load().is_ok());
 

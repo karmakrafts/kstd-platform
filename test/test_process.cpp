@@ -22,7 +22,7 @@
 #include <iostream>
 #include <kstd/platform/process.hpp>
 
-TEST(kstd_platform_Process, TestCurrent) {
+TEST(kstd_platform_Process, test_current) {
     auto proc_result = kstd::platform::Process::get_current();
     ASSERT_TRUE(proc_result);
     auto& proc = *proc_result;
@@ -32,7 +32,7 @@ TEST(kstd_platform_Process, TestCurrent) {
     ASSERT_NE(pid, 0);
 }
 
-TEST(kstd_platform_Process, TestGetPath) {
+TEST(kstd_platform_Process, test_get_path) {
     auto proc_result = kstd::platform::Process::get_current();
     ASSERT_TRUE(proc_result);
     auto& proc = *proc_result;

@@ -20,7 +20,7 @@
 #include <gtest/gtest.h>
 #include <kstd/platform/file_mapping.hpp>
 
-TEST(kstd_platform_FileMapping, TestMapUnmap) {
+TEST(kstd_platform_FileMapping, test_map_unmap) {
     using namespace kstd::platform;
 
     const auto access = mm::MappingAccess::READ | mm::MappingAccess::WRITE;
