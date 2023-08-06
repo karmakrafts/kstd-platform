@@ -30,17 +30,12 @@ constexpr auto lib_name = "libc.so.6";
 
 TEST(kstd_platform_DynamicLibrary, test_load_unload) {
     auto lib = kstd::platform::DynamicLib(lib_name);
-    ASSERT_TRUE(lib.load().is_ok());
-    ASSERT_TRUE(lib.unload().is_ok());
 }
 
 TEST(kstd_platform_DynamicLibrary, test_call_function) {
     auto lib = kstd::platform::DynamicLib(lib_name);
-    ASSERT_TRUE(lib.load().is_ok());
 
     auto result = lib.get_function<kstd::i32, const char*, const char*>("printf");
     ASSERT_TRUE(result);
     (*result)("%s", "Hello World!\n");
-
-    ASSERT_TRUE(lib.unload().is_ok());
 }

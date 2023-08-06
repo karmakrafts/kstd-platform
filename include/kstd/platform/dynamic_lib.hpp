@@ -33,15 +33,16 @@ namespace kstd::platform {
         [[nodiscard]] auto get_function_address(const std::string& name) noexcept -> Result<void*>;
 
         public:
-        KSTD_NO_MOVE_COPY(DynamicLib, DynamicLib)
+        DynamicLib(const DynamicLib& other);
+        DynamicLib(DynamicLib&& other) noexcept;
+        DynamicLib() noexcept;
 
-        explicit DynamicLib(std::string name) noexcept;
+        explicit DynamicLib(std::string name);
 
-        ~DynamicLib() noexcept = default;
+        ~DynamicLib() noexcept;
 
-        [[nodiscard]] auto load() noexcept -> Result<void>;
-
-        [[nodiscard]] auto unload() noexcept -> Result<void>;
+        auto operator=(const DynamicLib& other) -> DynamicLib&;
+        auto operator=(DynamicLib&& other) noexcept -> DynamicLib&;
 
         template<typename R, typename... ARGS>
         [[nodiscard]] inline auto get_function(const std::string& name) noexcept -> Result<R (*)(ARGS...)> {

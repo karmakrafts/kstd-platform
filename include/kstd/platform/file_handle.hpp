@@ -35,7 +35,7 @@ namespace kstd::platform::file {
         }
 
         FileHandle() noexcept :
-                _value(invalid_file_handle()) {
+                _value(invalid_file_handle) {
         }
 
         ~FileHandle() noexcept = default;
@@ -53,11 +53,7 @@ namespace kstd::platform::file {
         }
 
         [[nodiscard]] inline auto is_valid() const noexcept -> bool {
-#ifdef PLATFORM_WINDOWS
-            return _value != nullptr && _value != INVALID_HANDLE_VALUE;
-#else
-            return _value != -1;
-#endif
+            return _value != invalid_file_handle;
         }
     };
 }// namespace kstd::platform::file

@@ -61,21 +61,13 @@ namespace kstd::platform {
 
 #ifdef PLATFORM_WINDOWS
     constexpr usize max_path = MAX_PATH;
+    constexpr NativeFileHandle invalid_file_handle = INVALID_HANDLE_VALUE;
 #else
     constexpr usize max_path = PATH_MAX;
+    constexpr NativeFileHandle invalid_file_handle = -1;
 #endif
 
-    [[nodiscard]] inline auto invalid_file_handle() noexcept -> NativeFileHandle {
-#ifdef PLATFORM_WINDOWS
-        return INVALID_HANDLE_VALUE;
-#else
-        return -1;
-#endif
-    }
-
-    [[nodiscard]] inline auto invalid_module_handle() noexcept -> NativeModuleHandle {
-        return nullptr;// This is here as a placeholder if anything should ever change
-    }
+    constexpr NativeModuleHandle invalid_module_handle = nullptr;// Placeholder for now
 
     enum class Platform : u8 {
         WINDOWS,

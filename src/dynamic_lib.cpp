@@ -31,39 +31,62 @@
 #include <kstd/utils.hpp>
 
 namespace kstd::platform {
-    DynamicLib::DynamicLib(std::string name) noexcept :
+    DynamicLib::DynamicLib(std::string name) :
             _name {std::move(name)},
-            _handle {nullptr} {
+#ifdef PLATFORM_WINDOWS
+            _handle {::LoadLibraryW(utils::to_wcs(_name).data())}
+#else
+            _handle {::dlopen(_name.c_str(), RTLD_LAZY)}
+#endif
+    {
+        if(_handle == invalid_module_handle) {
+            throw std::runtime_error {fmt::format("Could not open shared object {}: {}", _name, get_last_error())};
+        }
     }
 
-    auto DynamicLib::load() noexcept -> Result<void> {
-#ifdef PLATFORM_WINDOWS
-        _handle = ::LoadLibraryW(utils::to_wcs(_name).data());
-        if(_handle == nullptr) {
-            return Error {fmt::format("Could not open DLL {}: {}", _name, get_last_error())};
-        }
-#else
-        _handle = ::dlopen(_name.c_str(), RTLD_LAZY);
-        if(_handle == nullptr) {
-            return Error {fmt::format("Could not open shared object {}: {}", _name, get_last_error())};
-        }
-#endif
-
-        return {};
+    DynamicLib::DynamicLib() noexcept :
+            _handle {invalid_module_handle} {
     }
 
-    auto DynamicLib::unload() noexcept -> Result<void> {
+    DynamicLib::~DynamicLib() noexcept {
+        if(_handle != invalid_module_handle) {
 #ifdef PLATFORM_WINDOWS
-        if(::FreeLibrary(_handle) == FALSE) {
-            return Error {fmt::format("Could not close DLL {}: {}", _name, get_last_error())};
-        }
+            ::FreeLibrary(_handle);
 #else
-        if(::dlclose(_handle) != 0) {
-            return Error {fmt::format("Could not close shared object {}: {}", _name, get_last_error())};
-        }
+            ::dlclose(_handle);
 #endif
+        }
+    }
 
-        return {};
+    DynamicLib::DynamicLib(const kstd::platform::DynamicLib& other) :
+            DynamicLib(other._name) {
+    }
+
+    DynamicLib::DynamicLib(kstd::platform::DynamicLib&& other) noexcept :
+            _name {std::move(other._name)},
+            _handle {other._handle} {
+        other._handle = invalid_module_handle;
+    }
+
+    auto DynamicLib::operator=(const kstd::platform::DynamicLib& other) -> DynamicLib& {
+        auto& name = other._name;
+        _name = name;
+#ifdef PLATFORM_WINDOWS
+        _handle = ::LoadLibraryW(utils::to_wcs(name).data());
+#else
+        _handle = ::dlopen(name.c_str(), RTLD_LAZY);
+#endif
+        if(_handle == invalid_module_handle) {
+            throw std::runtime_error {fmt::format("Could not open shared object {}: {}", name, get_last_error())};
+        }
+        return *this;
+    }
+
+    auto DynamicLib::operator=(kstd::platform::DynamicLib&& other) noexcept -> DynamicLib& {
+        _name = std::move(other._name);
+        _handle = other._handle;
+        other._handle = invalid_module_handle;
+        return *this;
     }
 
     auto DynamicLib::get_function_address(const std::string& name) noexcept -> Result<void*> {
