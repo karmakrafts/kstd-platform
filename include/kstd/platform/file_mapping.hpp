@@ -25,29 +25,35 @@
 namespace kstd::platform::mm {
     class FileMapping final : public MemoryMapping {
         file::File _file;
+        MappingType _type;
+        MappingAccess _access;
+        void* _address;
 
 #ifdef PLATFORM_WINDOWS
         file::FileHandle _handle {};
 #endif
 
-        [[nodiscard]] auto soft_map() noexcept -> Result<void>;
-
-        [[nodiscard]] auto soft_unmap() noexcept -> Result<void>;
-
         public:
-        KSTD_NO_MOVE_COPY(FileMapping, FileMapping)
+        FileMapping(const FileMapping& other);
+        FileMapping(FileMapping&& other) noexcept;
+        FileMapping() noexcept;
 
-        FileMapping(std::filesystem::path path, MappingAccess access) noexcept;
+        FileMapping(std::filesystem::path path, MappingAccess access);
 
-        ~FileMapping() noexcept final = default;
+        ~FileMapping() noexcept;
 
-        [[nodiscard]] auto map() noexcept -> Result<void> final;
-
-        [[nodiscard]] auto unmap() noexcept -> Result<void> final;
+        auto operator=(const FileMapping& other) -> FileMapping&;
+        auto operator=(FileMapping&& other) noexcept -> FileMapping&;
 
         [[nodiscard]] auto resize(usize size) noexcept -> Result<void> final;
 
         [[nodiscard]] auto sync() noexcept -> Result<void> final;
+
+        [[nodiscard]] auto get_type() const noexcept -> MappingType final;
+
+        [[nodiscard]] auto get_access() const noexcept -> MappingAccess final;
+
+        [[nodiscard]] auto get_address() const noexcept -> void* final;
 
         [[nodiscard]] inline auto get_file() const noexcept -> const file::File& {
             return _file;

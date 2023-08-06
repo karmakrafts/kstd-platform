@@ -26,11 +26,7 @@ TEST(kstd_platform_FileMapping, test_map_unmap) {
     const auto access = mm::MappingAccess::READ | mm::MappingAccess::WRITE;
     mm::FileMapping mapping("./test/test_file_2.bin", access);
 
-    ASSERT_TRUE(mapping.map().is_ok());
-
 #ifdef PLATFORM_WINDOWS
     ASSERT_TRUE(mapping.get_handle().is_valid());
 #endif
-
-    ASSERT_TRUE(mapping.unmap().is_ok());
 }

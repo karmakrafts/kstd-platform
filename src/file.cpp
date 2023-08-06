@@ -38,16 +38,25 @@
 #endif
 
 namespace kstd::platform::file {
-    File::File(std::filesystem::path path, FileMode mode) noexcept :
-            _path {std::move(path)},
-            _mode {mode} {
+    File::File(const File& other) :
+            File(other._path, other._mode) {
     }
 
-    auto File::open() noexcept -> Result<void> {
-        if(is_open()) {
-            return Error {fmt::format("Could not open file {}: already opened", _path.string())};
-        }
+    File::File(File&& other) noexcept :
+            _path {std::move(other._path)},
+            _mode {other._mode},
+            _handle {other._handle} {
+        other._handle = invalid_file_handle;
+    }
 
+    File::File() noexcept :
+            _mode {file::FileMode::READ},
+            _handle {invalid_file_handle} {
+    }
+
+    File::File(std::filesystem::path path, FileMode mode) :
+            _path {std::move(path)},
+            _mode {mode} {
         const auto exists = std::filesystem::exists(_path);
 
         if(!exists && _path.has_parent_path()) {
@@ -62,7 +71,7 @@ namespace kstd::platform::file {
         auto* sec_desc = new SECURITY_DESCRIPTOR();// Heap-allocate new security descriptor
 
         if(::InitializeSecurityDescriptor(sec_desc, SECURITY_DESCRIPTOR_REVISION) == 0) {
-            return Error {
+            throw std::runtime_error {
                     fmt::format("Could not allocate security descriptor for {}: {}", _path.string(), get_last_error())};
         }
 
@@ -109,31 +118,35 @@ namespace kstd::platform::file {
 #endif
 
         if(!_handle.is_valid()) {
-            return Error {fmt::format("Could not open file {}: {}", _path.string(), get_last_error())};
+            throw std::runtime_error {fmt::format("Could not open file {}: {}", _path.string(), get_last_error())};
         }
-
-        return {};
     }
 
-    auto File::close() noexcept -> Result<void> {
-        if(!is_open()) {
-            return Error {fmt::format("Could not close file {}: not opened", _path.string())};
-        }
-
+    File::~File() noexcept {
+        if(_handle.is_valid()) {
 #ifdef PLATFORM_WINDOWS
-        if(!::CloseHandle(_handle)) {
-            return Error {fmt::format("Could not close file {}: {}", _path.string(), get_last_error())};
-        }
-
-        delete reinterpret_cast<SECURITY_DESCRIPTOR*>(_security_attribs.lpSecurityDescriptor);
+            ::CloseHandle(_handle);
+            delete reinterpret_cast<SECURITY_DESCRIPTOR*>(_security_attribs.lpSecurityDescriptor);
 #else
-        if(::close(_handle) != 0) {
-            return Error {fmt::format("Could not close file {}: {}", _path.string(), get_last_error())};
-        }
+            ::close(_handle);
 #endif
+        }
+    }
 
-        _handle = {};// Set handle to be invalid after this
-        return {};
+    auto File::operator=(const kstd::platform::file::File& other) -> File& {
+        if(this == &other) {
+            return *this;
+        }
+        *this = File {other._path, other._mode};
+        return *this;
+    }
+
+    auto File::operator=(kstd::platform::file::File&& other) noexcept -> File& {
+        _path = std::move(other._path);
+        _mode = other._mode;
+        _handle = other._handle;
+        other._handle = invalid_file_handle;
+        return *this;
     }
 
     auto File::set_executable(bool is_executable) const noexcept -> Result<void> {
@@ -167,10 +180,6 @@ namespace kstd::platform::file {
         DWORD type = 0;
         return ::GetBinaryTypeW(wide_path.data(), &type);
 #else
-        if(!is_open()) {
-            return Error {fmt::format("Could not stat file {}: not opened", _path.string())};
-        }
-
         KSTD_FILE_STAT stats {};
 
         if(KSTD_FSTAT(_handle, &stats) != 0) {
@@ -183,10 +192,6 @@ namespace kstd::platform::file {
     }
 
     auto File::get_size() const noexcept -> Result<usize> {
-        if(!is_open()) {
-            return Error {fmt::format("Could not retrieve file size for {}: not opened", _path.string())};
-        }
-
 #ifdef PLATFORM_WINDOWS
         LARGE_INTEGER size {};
 
@@ -207,10 +212,6 @@ namespace kstd::platform::file {
     }
 
     auto File::resize(usize size) const noexcept -> Result<void> {
-        if(!is_open()) {
-            return Error {fmt::format("Could not resize file {}: not opened", _path.string())};
-        }
-
 #ifdef PLATFORM_WINDOWS
         LARGE_INTEGER distance {};
         distance.QuadPart = static_cast<LONGLONG>(size);

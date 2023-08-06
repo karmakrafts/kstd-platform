@@ -44,15 +44,16 @@ namespace kstd::platform::file {
 #endif
 
         public:
-        KSTD_NO_MOVE_COPY(File, File)
+        File(const File& other);
+        File(File&& other) noexcept;
+        File() noexcept;
 
-        explicit File(std::filesystem::path path, FileMode mode) noexcept;
+        explicit File(std::filesystem::path path, FileMode mode);
 
-        ~File() noexcept = default;
+        ~File() noexcept;
 
-        [[nodiscard]] auto open() noexcept -> Result<void>;
-
-        [[nodiscard]] auto close() noexcept -> Result<void>;
+        auto operator=(const File& other) -> File&;
+        auto operator=(File&& other) noexcept -> File&;
 
         [[nodiscard]] auto get_size() const noexcept -> Result<usize>;
 
@@ -72,18 +73,6 @@ namespace kstd::platform::file {
 
         [[nodiscard]] inline auto get_handle() const noexcept -> FileHandle {
             return _handle;
-        }
-
-        [[nodiscard]] inline auto is_open() const noexcept -> bool {
-            return _handle.is_valid();
-        }
-
-        [[nodiscard]] inline auto is_directory() const noexcept -> bool {
-            return std::filesystem::is_directory(_path);
-        }
-
-        [[nodiscard]] inline auto exists() const noexcept -> bool {
-            return std::filesystem::exists(_path);
         }
 
 #ifdef PLATFORM_WINDOWS

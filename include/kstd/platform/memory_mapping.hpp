@@ -27,7 +27,6 @@
 
 namespace kstd::platform::mm {
     enum class MappingType : u8 {
-        NAMED,
         FILE
     };
 
@@ -55,45 +54,15 @@ namespace kstd::platform::mm {
         }
     }
 
-    class MemoryMapping {
-        protected:
-        MappingType _type;    // NOLINT
-        MappingAccess _access;// NOLINT
-        void* _address;       // NOLINT
-
-        MemoryMapping(MappingType type, MappingAccess access) noexcept :
-                _type(type),
-                _access(access),
-                _address(nullptr) {
-        }
-
-        public:
-        KSTD_NO_MOVE_COPY(MemoryMapping, MemoryMapping)
-
-        virtual ~MemoryMapping() noexcept = default;
-
-        [[nodiscard]] virtual auto map() noexcept -> Result<void> = 0;
-
-        [[nodiscard]] virtual auto unmap() noexcept -> Result<void> = 0;
-
+    struct MemoryMapping {
         [[nodiscard]] virtual auto resize(usize size) noexcept -> Result<void> = 0;
 
         [[nodiscard]] virtual auto sync() noexcept -> Result<void> = 0;
 
-        [[nodiscard]] inline auto get_type() const noexcept -> MappingType {
-            return _type;
-        }
+        [[nodiscard]] virtual auto get_type() const noexcept -> MappingType = 0;
 
-        [[nodiscard]] inline auto get_access() const noexcept -> MappingAccess {
-            return _access;
-        }
+        [[nodiscard]] virtual auto get_access() const noexcept -> MappingAccess = 0;
 
-        [[nodiscard]] inline auto get_address() const noexcept -> void* {
-            return _address;
-        }
-
-        [[nodiscard]] inline auto is_mapped() const noexcept -> bool {
-            return _address != nullptr;
-        }
+        [[nodiscard]] virtual auto get_address() const noexcept -> void* = 0;
     };
 }// namespace kstd::platform::mm

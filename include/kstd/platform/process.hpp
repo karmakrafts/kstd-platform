@@ -35,9 +35,11 @@ namespace kstd::platform {
 #ifdef PLATFORM_WINDOWS
     using NativeProcessId = DWORD;
     using NativeProcessHandle = HANDLE;
+    constexpr NativeProcessHandle invalid_process_handle = INVALID_HANDLE_VALUE;
 #else
     using NativeProcessId = pid_t;
     using NativeProcessHandle = pid_t;
+    constexpr NativeProcessHandle invalid_process_handle = -1;
 #endif
 
     class Process final {
@@ -45,14 +47,15 @@ namespace kstd::platform {
         NativeProcessHandle _handle;
 
         public:
-        Process(const Process& other) noexcept;
+        Process(const Process& other);
         Process(Process&& other) noexcept;
+        Process() noexcept;
 
         Process(NativeProcessId pid);
 
         ~Process() noexcept;
 
-        auto operator=(const Process& other) noexcept -> Process&;
+        auto operator=(const Process& other) -> Process&;
         auto operator=(Process&& other) noexcept -> Process&;
 
         [[nodiscard]] static auto get_current() noexcept -> Result<Process>;

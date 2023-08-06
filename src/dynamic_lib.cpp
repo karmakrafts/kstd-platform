@@ -69,16 +69,10 @@ namespace kstd::platform {
     }
 
     auto DynamicLib::operator=(const kstd::platform::DynamicLib& other) -> DynamicLib& {
-        auto& name = other._name;
-        _name = name;
-#ifdef PLATFORM_WINDOWS
-        _handle = ::LoadLibraryW(utils::to_wcs(name).data());
-#else
-        _handle = ::dlopen(name.c_str(), RTLD_LAZY);
-#endif
-        if(_handle == invalid_module_handle) {
-            throw std::runtime_error {fmt::format("Could not open shared object {}: {}", name, get_last_error())};
+        if(this == &other) {
+            return *this;
         }
+        *this = DynamicLib {other._name};
         return *this;
     }
 

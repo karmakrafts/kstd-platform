@@ -22,8 +22,5 @@
 
 TEST(kstd_platform_File, test_open_close) {
     kstd::platform::file::File file("./test/test_file.bin", kstd::platform::file::FileMode::READ_WRITE);
-
-    ASSERT_TRUE(file.open().is_ok());
     ASSERT_TRUE(file.get_handle().is_valid());
-    ASSERT_TRUE(file.close().is_ok());
 }

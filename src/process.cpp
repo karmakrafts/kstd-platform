@@ -31,19 +31,22 @@
 #endif
 
 namespace kstd::platform {
-    Process::Process(const Process& other) noexcept :
+    Process::Process(const Process& other) :
             Process(other._pid) {
     }
 
     Process::Process(Process&& other) noexcept :
             _pid {other._pid},
             _handle {other._handle} {
-#ifdef PLATFORM_WINDOWS
-        other._handle = INVALID_HANDLE_VALUE;
-#endif
+        other._handle = invalid_process_handle;
     }
 
-    Process::Process(const kstd::platform::NativeProcessId pid) :
+    Process::Process() noexcept :
+            _pid {-1},
+            _handle {invalid_process_handle} {
+    }
+
+    Process::Process(const NativeProcessId pid) :
             _pid {pid},
 #ifdef PLATFORM_WINDOWS
             _handle {::OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid)}
@@ -51,38 +54,26 @@ namespace kstd::platform {
             _handle {pid}
 #endif
     {
-#ifdef PLATFORM_WINDOWS
-        if(_handle == INVALID_HANDLE_VALUE) {
+        if(_handle == invalid_process_handle) {
             throw std::runtime_error(fmt::format("Could not open process handle: {}", get_last_error()));
         }
-#endif
     }
 
-    auto Process::operator=(const Process& other) noexcept -> Process& {
-        _pid = other._pid;
-#ifdef PLATFORM_WINDOWS
-        _handle = ::OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, _pid);
-        if(_handle == INVALID_HANDLE_VALUE) {
-            throw std::runtime_error(fmt::format("Could not open process handle: {}", get_last_error()));
-        }
-#else
-        _handle = _pid;
-#endif
+    auto Process::operator=(const Process& other) -> Process& {
+        *this = Process {other._pid};
         return *this;
     }
 
     auto Process::operator=(Process&& other) noexcept -> Process& {
         _pid = other._pid;
         _handle = other._handle;
-#ifdef PLATFORM_WINDOWS
-        other._handle = INVALID_HANDLE_VALUE;
-#endif
+        other._handle = invalid_process_handle;
         return *this;
     }
 
     Process::~Process() noexcept {
 #ifdef PLATFORM_WINDOWS
-        if(_handle != INVALID_HANDLE_VALUE) {
+        if(_handle != invalid_process_handle) {
             ::CloseHandle(_handle);
         }
 #endif
