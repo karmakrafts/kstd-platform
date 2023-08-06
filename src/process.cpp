@@ -42,7 +42,7 @@ namespace kstd::platform {
     }
 
     Process::Process() noexcept :
-            _pid {-1},
+            _pid {invalid_process_id},
             _handle {invalid_process_handle} {
     }
 

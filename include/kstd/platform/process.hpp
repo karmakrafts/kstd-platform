@@ -35,11 +35,13 @@ namespace kstd::platform {
 #ifdef PLATFORM_WINDOWS
     using NativeProcessId = DWORD;
     using NativeProcessHandle = HANDLE;
-    constexpr NativeProcessHandle invalid_process_handle = INVALID_HANDLE_VALUE;
+    static inline const NativeProcessId invalid_process_id = static_cast<NativeProcessId>(-1);
+    static inline const NativeProcessHandle invalid_process_handle = INVALID_HANDLE_VALUE;
 #else
     using NativeProcessId = pid_t;
     using NativeProcessHandle = pid_t;
-    constexpr NativeProcessHandle invalid_process_handle = -1;
+    static inline const NativeProcessId invalid_process_id = -1;
+    static inline const NativeProcessHandle invalid_process_handle = -1;
 #endif
 
     class Process final {
