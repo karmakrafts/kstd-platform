@@ -20,7 +20,6 @@
 #ifdef PLATFORM_LINUX
 
 #include "kstd/platform/file_mapping.hpp"
-#include "kstd/platform/memory.hpp"
 
 #if defined(CPU_64_BIT)
 #define KSTD_MMAP ::mmap64
