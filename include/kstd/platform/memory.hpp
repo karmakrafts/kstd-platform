@@ -43,7 +43,7 @@ namespace kstd::platform::mm {
 #elif defined(PLATFORM_APPLE)
         return malloc_size(memory);
 #else
-        return malloc_usable_size(memory) - sizeof(void*);
+        return malloc_usable_size(memory);
 #endif
     }
 
