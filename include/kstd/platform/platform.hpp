@@ -44,14 +44,17 @@ namespace kstd::platform {
 #if defined(PLATFORM_WINDOWS)
     using NativeFileHandle = HANDLE;
     using NativeModuleHandle = HMODULE;
+    using NativeSocketHandle = SOCKET;
     using NativeOffset = isize;
 #elif defined(PLATFORM_APPLE)
-    using NativeFileHandle = i32;
+    using NativeFileHandle = int;
     using NativeModuleHandle = void*;
+    using NativeSocketHandle = int;
     using NativeOffset = off_t;
 #else
-    using NativeFileHandle = i32;
+    using NativeFileHandle = int;
     using NativeModuleHandle = void*;
+    using NativeSocketHandle = int;
 #ifdef CPU_64_BIT
     using NativeOffset = __off64_t;
 #else
@@ -62,28 +65,20 @@ namespace kstd::platform {
 #ifdef PLATFORM_WINDOWS
     static constexpr usize max_path = MAX_PATH;
     static inline const NativeFileHandle invalid_file_handle = INVALID_HANDLE_VALUE;
+    static inline const NativeSocketHandle invalid_socket_handle = INVALID_SOCKET;
 #else
     static constexpr usize max_path = PATH_MAX;
     static inline const NativeFileHandle invalid_file_handle = -1;
+    static inline const NativeSocketHandle invalid_socket_handle = -1;
 #endif
 
-    static inline const NativeModuleHandle invalid_module_handle = nullptr;// Placeholder for now
+    static inline const NativeModuleHandle invalid_module_handle = nullptr;
 
     enum class Platform : u8 {
         WINDOWS,
         LINUX,
         MACOS
     };
-
-    [[nodiscard]] inline auto get_platform() noexcept -> Platform {
-#if defined(PLATFORM_WINDOWS)
-        return Platform::WINDOWS;
-#elif defined(PLATFORM_APPLE)
-        return Platform::MACOS;
-#else
-        return Platform::LINUX;
-#endif
-    }
 
     [[nodiscard]] inline auto get_platform_name(Platform platform) noexcept -> std::string {
         switch(platform) {
@@ -94,35 +89,9 @@ namespace kstd::platform {
         }
     }
 
-    [[nodiscard]] inline auto get_last_error() noexcept -> std::string {
-#ifdef PLATFORM_WINDOWS
-        const auto error_code = ::GetLastError();
+    [[nodiscard]] auto get_platform() noexcept -> Platform;
 
-        if(error_code == 0) {
-            return "";
-        }
+    [[nodiscard]] auto get_last_error() noexcept -> std::string;
 
-        LPWSTR buffer = nullptr;
-        constexpr auto lang_id = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
-        const auto new_length = ::FormatMessageW(
-                FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr,
-                error_code, lang_id, reinterpret_cast<LPWSTR>(&buffer), 0, nullptr);
-        auto message = utils::to_mbs({buffer, new_length});
-        LocalFree(buffer);
-
-        return fmt::format("ERROR 0x{:X}: {}", error_code, message);
-#else
-        return fmt::format("ERROR 0x{:X}: {}", errno, strerror(errno));
-#endif
-    }
-
-    [[nodiscard]] inline auto get_page_size() noexcept -> usize {
-#ifdef PLATFORM_WINDOWS
-        SYSTEM_INFO info {};
-        ::GetSystemInfo(&info);
-        return static_cast<usize>(info.dwPageSize);
-#else
-        return static_cast<usize>(::sysconf(_SC_PAGESIZE));
-#endif
-    }
+    [[nodiscard]] auto get_page_size() noexcept -> usize;
 }// namespace kstd::platform
