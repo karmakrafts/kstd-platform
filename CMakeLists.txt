@@ -30,7 +30,7 @@ if(KSTD_PLATFORM_BUILD_TESTS)
     add_dependencies(kstd-platform-tests kstd-platform-static)
 endif()
 
-if(PLATFORM_LINUX)
+if(CMX_PLATFORM_LINUX)
     target_link_libraries(kstd-platform PUBLIC -ldl -lrt)
     target_link_libraries(kstd-platform-static PUBLIC -ldl -lrt)
     if(KSTD_PLATFORM_BUILD_TESTS)
