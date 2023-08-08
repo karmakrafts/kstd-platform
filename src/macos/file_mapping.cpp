@@ -20,7 +20,6 @@
 #ifdef PLATFORM_APPLE
 
 #include "kstd/platform/file_mapping.hpp"
-#include "kstd/platform/memory.hpp"
 
 namespace kstd::platform::mm {
     FileMapping::FileMapping(const kstd::platform::mm::FileMapping& other) :
