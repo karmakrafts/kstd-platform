@@ -28,6 +28,8 @@
 #define NOMINMAX
 #include <Windows.h>
 #include <sysinfoapi.h>
+#include <Winsock2.h>
+#include <WS2tcpip.h>
 
 #else
 
