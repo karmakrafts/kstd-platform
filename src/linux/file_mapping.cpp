@@ -17,15 +17,15 @@
  * @since 02/07/2023
  */
 
+#ifdef PLATFORM_LINUX
+
 #include "kstd/platform/file_mapping.hpp"
 #include "kstd/platform/memory.hpp"
 
-#ifdef PLATFORM_UNIX
-#if defined(CPU_64_BIT) && !defined(PLATFORM_APPLE)
+#if defined(CPU_64_BIT)
 #define KSTD_MMAP ::mmap64
 #else
 #define KSTD_MMAP ::mmap
-#endif
 #endif
 
 namespace kstd::platform::mm {
@@ -51,7 +51,7 @@ namespace kstd::platform::mm {
             _file {file::File {std::move(path), derive_file_mode(access)}},
             _type {MappingType::FILE},
             _access {access},
-            _address {nullptr} {
+            _address {} {
         const auto is_readable = (_access & MappingAccess::READ) == MappingAccess::READ;
         const auto is_writable = (_access & MappingAccess::WRITE) == MappingAccess::WRITE;
         const auto is_executable = (_access & MappingAccess::EXECUTE) == MappingAccess::EXECUTE;
@@ -67,45 +67,6 @@ namespace kstd::platform::mm {
             size = 1;// Make sure we map at least one byte of data
         }
 
-#ifdef PLATFORM_WINDOWS
-        DWORD map_prot = 0;
-        DWORD map_access = 0;
-
-        if(is_writable) {
-            map_prot = (is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE);
-        }
-        else if(is_readable) {
-            map_prot = (is_executable ? PAGE_EXECUTE_READ : PAGE_READONLY);
-        }
-
-        if(is_writable && is_readable) {
-            map_access = FILE_MAP_ALL_ACCESS;
-        }
-        else if(is_writable) {
-            map_access = FILE_MAP_WRITE;
-        }
-        else if(is_readable) {
-            map_access = FILE_MAP_READ;
-        }
-
-        if(is_executable) {
-            map_access |= FILE_MAP_EXECUTE;
-        }
-
-        _handle = ::CreateFileMappingW(_file.get_handle(), &_file.get_security_attribs(), map_prot, 0, 0, nullptr);
-
-        if(!_handle.is_valid()) {
-            throw std::runtime_error {fmt::format("Could not open shared memory handle for {}: {}",
-                                                  _file.get_path().string(), get_last_error())};
-        }
-
-        _address = ::MapViewOfFileEx(_handle, map_access, 0, 0, 0, nullptr);
-
-        if(_address == nullptr) {
-            throw std::runtime_error {
-                    fmt::format("Could not map shared memory for {}: {}", _file.get_path().string(), get_last_error())};
-        }
-#else
         i32 prot = 0;
         i32 map_flags = MAP_SHARED | MAP_FILE;
 
@@ -119,9 +80,7 @@ namespace kstd::platform::mm {
 
         if(is_executable) {
             prot |= PROT_EXEC;
-#ifndef PLATFORM_APPLE
             map_flags |= MAP_EXECUTABLE;
-#endif
         }
 
         _address = KSTD_MMAP(nullptr, size, prot, map_flags, _file.get_handle(), 0);
@@ -130,7 +89,6 @@ namespace kstd::platform::mm {
             throw std::runtime_error {
                     fmt::format("Could not map file {}: {}", _file.get_path().string(), get_last_error())};
         }
-#endif
     }
 
     auto FileMapping::operator=(const kstd::platform::mm::FileMapping& other) -> FileMapping& {
@@ -152,10 +110,6 @@ namespace kstd::platform::mm {
 
     FileMapping::~FileMapping() noexcept {
         if(_address != nullptr) {
-#ifdef PLATFORM_WINDOWS
-            ::UnmapViewOfFile(_address);
-            ::CloseHandle(_handle);
-#else
             const auto size = _file.get_size().get_or(0);
 
             if(size == 0) {
@@ -163,7 +117,6 @@ namespace kstd::platform::mm {
             }
 
             ::munmap(_address, size);
-#endif
         }
     }
 
@@ -172,8 +125,6 @@ namespace kstd::platform::mm {
     }
 
     auto FileMapping::sync() noexcept -> Result<void> {
-#ifdef PLATFORM_WINDOWS
-#else
         auto size_result = _file.get_size();
 
         if(!size_result) {
@@ -183,7 +134,6 @@ namespace kstd::platform::mm {
         if(::msync(_address, *size_result, MS_SYNC) != 0) {
             return Error {fmt::format("Could not sync mapping: {}", get_last_error())};
         }
-#endif
 
         return {};
     }
@@ -200,3 +150,5 @@ namespace kstd::platform::mm {
         return _address;
     }
 }// namespace kstd::platform::mm
+
+#endif// PLATFORM_LINUX

@@ -17,28 +17,18 @@
  * @since 06/05/2023
  */
 
-#include "kstd/platform/dynamic_lib.hpp"
-
 #ifdef PLATFORM_WINDOWS
-#include <libloaderapi.h>
-#else
 
-#include <dlfcn.h>
-
-#endif
+#include "kstd/platform/dynamic_lib.hpp"
 
 #include <fmt/format.h>
 #include <kstd/utils.hpp>
+#include <libloaderapi.h>
 
 namespace kstd::platform {
     DynamicLib::DynamicLib(std::string name) :
             _name {std::move(name)},
-#ifdef PLATFORM_WINDOWS
-            _handle {::LoadLibraryW(utils::to_wcs(_name).data())}
-#else
-            _handle {::dlopen(_name.c_str(), RTLD_LAZY)}
-#endif
-    {
+            _handle {::LoadLibraryW(utils::to_wcs(_name).data())} {
         if(_handle == invalid_module_handle) {
             throw std::runtime_error {fmt::format("Could not open shared object {}: {}", _name, get_last_error())};
         }
@@ -50,11 +40,7 @@ namespace kstd::platform {
 
     DynamicLib::~DynamicLib() noexcept {
         if(_handle != invalid_module_handle) {
-#ifdef PLATFORM_WINDOWS
             ::FreeLibrary(_handle);
-#else
-            ::dlclose(_handle);
-#endif
         }
     }
 
@@ -84,11 +70,7 @@ namespace kstd::platform {
     }
 
     auto DynamicLib::get_function_address(const std::string& name) noexcept -> Result<void*> {
-#ifdef PLATFORM_WINDOWS
         auto* address = ::GetProcAddress(_handle, name.data());
-#else
-        auto* address = ::dlsym(_handle, name.data());
-#endif
 
         if(address == nullptr) {
             return Error {fmt::format("Could not resolve function {} in {}: {}", name, _name, get_last_error())};
@@ -97,3 +79,5 @@ namespace kstd::platform {
         return reinterpret_cast<void*>(address);// NOLINT
     }
 }// namespace kstd::platform
+
+#endif// PLATFORM_WINDOWS

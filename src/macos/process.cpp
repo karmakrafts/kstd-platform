@@ -17,18 +17,14 @@
  * @since 03/07/2023
  */
 
+#ifdef PLATFORM_APPLE
+
 #include "kstd/platform/process.hpp"
 
 #include <array>
 #include <fmt/format.h>
 #include <kstd/safe_alloc.hpp>
-
-#if defined(PLATFORM_WINDOWS)
-#include <Psapi.h>
-#include <processthreadsapi.h>
-#elif defined(PLATFORM_APPLE)
 #include <libproc.h>
-#endif
 
 namespace kstd::platform {
     Process::Process(const Process& other) :
@@ -48,12 +44,7 @@ namespace kstd::platform {
 
     Process::Process(const NativeProcessId pid) :
             _pid {pid},
-#ifdef PLATFORM_WINDOWS
-            _handle {::OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid)}
-#else
-            _handle {pid}
-#endif
-    {
+            _handle {pid} {
         if(_handle == invalid_process_handle) {
             throw std::runtime_error(fmt::format("Could not open process handle: {}", get_last_error()));
         }
@@ -71,40 +62,19 @@ namespace kstd::platform {
         return *this;
     }
 
-    Process::~Process() noexcept {
-#ifdef PLATFORM_WINDOWS
-        if(_handle != invalid_process_handle) {
-            ::CloseHandle(_handle);
-        }
-#endif
-    }
+    Process::~Process() noexcept = default;
 
     auto Process::get_current() noexcept -> Result<Process> {
-#ifdef PLATFORM_WINDOWS
-        return try_construct<Process>(::GetCurrentProcessId());
-#else
         return try_construct<Process>(::getpid());
-#endif
     }
 
     auto Process::get_path() const noexcept -> Result<std::filesystem::path> {
-#if defined(PLATFORM_WINDOWS)
-        std::array<wchar_t, max_path> buffer {};
-        if(::GetModuleFileNameExW(_handle, ::GetModuleHandleW(nullptr), buffer.data(), MAX_PATH) == 0) {
-            return Error {fmt::format("Could not retrieve process path: {}", get_last_error())};
-        }
-#elif defined(PLATFORM_APPLE)
         std::array<char, max_path> buffer {};
         if(::proc_pidpath(_pid, buffer.data(), max_path) < 0) {
             return Error {get_last_error()};
         }
-#else
-        std::array<char, max_path> buffer {};
-        auto exe_path = fmt::format("/proc/{}/exe", _pid);
-        if(::readlink(exe_path.c_str(), buffer.data(), max_path) == -1) {
-            return Error {get_last_error()};
-        }
-#endif
         return std::filesystem::path {buffer.data()};
     }
 }// namespace kstd::platform
+
+#endif// PLATFORM_APPLE
