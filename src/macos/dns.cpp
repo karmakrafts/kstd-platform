@@ -20,6 +20,7 @@
 #ifdef PLATFORM_APPLE
 
 #include "kstd/platform/dns.hpp"
+#include <resolv.h>
 #include <array>
 
 namespace kstd::platform {
@@ -39,7 +40,7 @@ namespace kstd::platform {
         }
 
         std::array<u_char, 256> response {};
-        kstd::usize response_length = res_query(address.c_str(), C_IN, static_cast<int>(type), response.data(),
+        kstd::usize response_length = res_query(address.c_str(), __ns_class::ns_c_in, static_cast<int>(type), response.data(),
                                                 response.size() * sizeof(char));
         if(response_length < 0) {
             return kstd::Error {fmt::format("Unable to resolve address {}: {}", address, get_last_error())};

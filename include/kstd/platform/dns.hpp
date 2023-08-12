@@ -37,15 +37,20 @@
 
 namespace kstd::platform {
 
-#ifdef PLATFORM_WINDOWS
+#if defined(PLATFORM_WINDOWS)
     enum class RecordType : kstd::u16 {
         A = DNS_TYPE_A,
         AAAA = DNS_TYPE_AAAA
     };
-#else
+#elif defined(PLATFORM_LINUX)
     enum class RecordType : kstd::u16 {
         A = T_A,
         AAAA = T_AAAA
+    };
+#else
+    enum class RecordType : kstd::u16 {
+        A = __ns_type::ns_t_a,
+        AAAA = __ns_type::ns_t_aaaa
     };
 #endif
 
