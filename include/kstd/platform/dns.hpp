@@ -47,6 +47,11 @@ namespace kstd::platform {
         A = DNS_TYPE_A,
         AAAA = DNS_TYPE_AAAA
     };
+
+    struct IP4Array {
+        DWORD address_count;
+        std::array<IP4_ADDRESS, 4> addresses;
+    };
 #elif defined(PLATFORM_LINUX)
     enum class RecordType : kstd::u16 {
         A = T_A,
@@ -60,9 +65,8 @@ namespace kstd::platform {
 #endif
 
     class Resolver final {
-        // TODO: Add documentation and comments to every function
 #ifdef PLATFORM_WINDOWS
-        kstd::Option<DNS_ADDR_ARRAY> _dns_addresses;
+        kstd::Option<IP4Array> _dns_addresses;
 #else
         std::vector<std::string> _dns_addresses;
 #endif
@@ -76,8 +80,6 @@ namespace kstd::platform {
 
         [[nodiscard]] auto resolve(const std::string& address, RecordType type) noexcept -> kstd::Result<std::string>;
     };
-
-    [[nodiscard]] auto enumerate_nameservers() noexcept -> kstd::Result<std::vector<std::string>>;
 
     inline auto is_ipv4_address(const std::string& address) noexcept -> bool {
         static auto s_pattern = std::regex(R"(([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3}))");

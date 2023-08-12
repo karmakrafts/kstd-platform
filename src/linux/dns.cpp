@@ -58,10 +58,8 @@ namespace kstd::platform {
                     _res.nsaddr_list[i].sin_family = AF_INET6;
                 }
                 else {
-                    return kstd::Error {
-                        fmt::format("Unable to resolve address of {}: Illegal DNS server address {}", address,
-                                    _dns_addresses[i])
-                    };
+                    return kstd::Error {fmt::format("Unable to resolve address of {}: Illegal DNS server address {}",
+                                                    address, _dns_addresses[i])};
                 }
                 _res.nsaddr_list[i].sin_addr.s_addr = ::inet_addr(_dns_addresses[i].c_str());
                 _res.nsaddr_list[i].sin_port = htons(53);
@@ -81,19 +79,6 @@ namespace kstd::platform {
             return kstd::Error {fmt::format("Unable to resolve address of {}: There is no response", address)};
         }
         return std::string {response_buffer.cbegin(), response_buffer.cbegin() + response_length + 1};
-    }
-
-    auto enumerate_nameservers() noexcept -> kstd::Result<std::vector<std::string>> {
-        res_init();
-        std::vector<std::string> addresses {};
-        for(int i = 0; i < _res.nscount; ++i) {
-            std::array<char, INET_ADDRSTRLEN + 1> address {};
-            inet_ntop(_res.nsaddr_list[i].sin_family, &(_res.nsaddr_list[i].sin_addr.s_addr), address.data(),
-                      INET_ADDRSTRLEN);
-            address[INET_ADDRSTRLEN] = '\0';
-            addresses.push_back(std::string {address.cbegin(), address.cend()});
-        }
-        return addresses;
     }
 }// namespace kstd::platform
 

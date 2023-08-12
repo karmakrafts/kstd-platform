@@ -22,12 +22,17 @@
 #include "kstd/platform/dns.hpp"
 #include <WS2tcpip.h>
 #include <iostream>
-#include <iphlpapi.h>
 
 namespace kstd::platform {
 
     Resolver::Resolver(std::vector<std::string> dns_addresses) {
         _dns_addresses = {{}};
+
+        if(dns_addresses.empty() || dns_addresses.size() > 2) {
+            throw std::runtime_error {fmt::format(
+                    "Unable to init Resolver => Illegal count of DNS addresses (Condition 0 < {} < 2 isn't true)",
+                    dns_addresses.size())};
+        }
 
         // Initialize WSA and throw exception if failed
         WSADATA wsaData {};
@@ -37,26 +42,20 @@ namespace kstd::platform {
 
         // Generate structure
         // TODO: Add support for multiple addresses
-        _dns_addresses->AddrCount = 1;
-        _dns_addresses->MaxCount = 1;
-        for(int i = 0; i < 1; ++i) {
+        _dns_addresses->address_count = dns_addresses.size();
+        for(int i = 0; i < _dns_addresses->address_count; ++i) {
             auto address = dns_addresses[i];
-            SOCKADDR_STORAGE sockaddr {};
-            INT sockaddr_len = sizeof(sockaddr);
-            if(FAILED(::WSAStringToAddressW(kstd::utils::to_wcs(address).data(), AF_INET, nullptr,// NOLINT
-                                            reinterpret_cast<LPSOCKADDR>(&sockaddr), &sockaddr_len))) {
-                if(FAILED(::WSAStringToAddressW(kstd::utils::to_wcs(address).data(), AF_INET6, nullptr,// NOLINT
-                                                reinterpret_cast<LPSOCKADDR>(&sockaddr), &sockaddr_len))) {
-                    throw std::runtime_error {
-                            fmt::format("Unable to format literal address to binary address => {}", get_last_error())};
-                }
+            SOCKADDR_IN addr {};
+            if(FAILED(InetPton(AF_INET, address.c_str(), &addr.sin_addr.s_addr))) {// NOLINT
+                throw std::runtime_error {
+                        fmt::format("Unable to interpret {} as IPv4 and convert it: {}", address, get_last_error())};
             }
-            CopyMemory(static_cast<char*>(_dns_addresses->AddrArray[i].MaxSa), &sockaddr, DNS_ADDR_MAX_SOCKADDR_LENGTH);
+
+            _dns_addresses->addresses[i] = addr.sin_addr.s_addr;// NOLINT
         }
     }
 
-    Resolver::Resolver() :
-            _dns_addresses {} {
+    Resolver::Resolver() {
         // Initialize WSA and throw exception if failed
         WSADATA wsaData {};
         if(FAILED(::WSAStartup(MAKEWORD(2, 2), &wsaData))) {
@@ -73,8 +72,8 @@ namespace kstd::platform {
         // Send request over DnsQuery function
         PDNS_RECORD record = nullptr;
 
-        PDNS_ADDR_ARRAY dns_server_list = nullptr;
-        if (_dns_addresses.has_value()) {
+        IP4Array* dns_server_list = nullptr;
+        if(_dns_addresses.has_value()) {
             dns_server_list = &_dns_addresses.get();
         }
         if(FAILED(::DnsQuery(address.data(), static_cast<kstd::u16>(type), DNS_QUERY_STANDARD | DNS_QUERY_BYPASS_CACHE,
@@ -82,7 +81,7 @@ namespace kstd::platform {
             return kstd::Error {fmt::format("Error while resolving {}: {}", address, get_last_error())};
         }
 
-        if (record == nullptr) {
+        if(record == nullptr) {
             return kstd::Error {fmt::format("Error while resolving {}: No record returned", address)};
         }
 
@@ -126,12 +125,6 @@ namespace kstd::platform {
         }
         DnsRecordListFree(record, DnsFreeRecordListDeep);
         return result;
-    }
-
-    auto enumerate_nameservers() noexcept -> kstd::Result<std::vector<std::string>> {
-        // TODO: Stop to return a empty vector and implement functionality
-        std::vector<std::string> dns_addresses {};
-        return dns_addresses;
     }
 
 }// namespace kstd::platform

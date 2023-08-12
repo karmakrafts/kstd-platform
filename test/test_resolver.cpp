@@ -33,15 +33,14 @@ TEST(kstd_platform_Resolver, test_resolve_remote_addresses) {
     resolver.resolve("karmakrafts.dev", kstd::platform::RecordType::AAAA).throw_if_error();
 }
 
-TEST(kstd_platform_Resolver, test_resolve_with_invalid_nameservers) {
-    auto resolver = kstd::platform::Resolver {{"1.2.3.4", "1.2.3.5", "1.2.3.6"}};
-    ASSERT_TRUE(resolver.resolve("karmakrafts.dev", kstd::platform::RecordType::A).is_error());
+TEST(kstd_platform_Resolver, test_resolve_with_valid_nameservers) {
+    auto resolver = kstd::platform::Resolver {{"1.1.1.1", "8.8.8.8"}};
+    resolver.resolve("karmakrafts.dev", kstd::platform::RecordType::A).throw_if_error();
+    resolver.resolve("karmakrafts.dev", kstd::platform::RecordType::AAAA).throw_if_error();
 }
 
-TEST(kstd_platform_Resolver, test_enumerate_nameservers) {
-    auto result = kstd::platform::enumerate_nameservers();
-    ASSERT_TRUE(result.is_ok());
-    for (auto address : result.get()) {
-        std::cout << fmt::format("Nameserver: {}", address) << '\n';
-    }
+
+TEST(kstd_platform_Resolver, test_resolve_with_invalid_nameservers) {
+    auto resolver = kstd::platform::Resolver {{"1.2.3.4", "1.2.3.5"}};
+    ASSERT_FALSE(resolver.resolve("karmakrafts.dev", kstd::platform::RecordType::A));
 }
