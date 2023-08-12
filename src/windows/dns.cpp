@@ -22,7 +22,6 @@
 #include "kstd/platform/dns.hpp"
 #include <WS2tcpip.h>
 #include <iostream>
-#include <algorithm>
 
 namespace kstd::platform {
 
@@ -37,7 +36,11 @@ namespace kstd::platform {
 
         // Generate structure
         // TODO: Add support for multiple addresses
-        _dns_addresses->address_count = max(dns_addresses.size(), 2);
+        _dns_addresses->address_count = dns_addresses.size();
+        if (_dns_addresses->address_count > 2) {
+            _dns_addresses->address_count = 2;
+        }
+
         for(int i = 0; i < _dns_addresses->address_count; ++i) {
             auto address = dns_addresses[i];
             SOCKADDR_IN addr {};
