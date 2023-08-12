@@ -17,7 +17,7 @@
  * @since 12/08/2023
  */
 
-#ifdef PLATFORM_LINUX
+#ifdef PLATFORM_APPLE
 
 #include "kstd/platform/dns.hpp"
 #include <array>
