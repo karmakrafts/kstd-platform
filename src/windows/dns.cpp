@@ -22,17 +22,12 @@
 #include "kstd/platform/dns.hpp"
 #include <WS2tcpip.h>
 #include <iostream>
+#include <algorithm>
 
 namespace kstd::platform {
 
     Resolver::Resolver(std::vector<std::string> dns_addresses) {
         _dns_addresses = {{}};
-
-        if(dns_addresses.empty() || dns_addresses.size() > 2) {
-            throw std::runtime_error {fmt::format(
-                    "Unable to init Resolver => Illegal count of DNS addresses (Condition 0 < {} < 2 isn't true)",
-                    dns_addresses.size())};
-        }
 
         // Initialize WSA and throw exception if failed
         WSADATA wsaData {};
@@ -42,7 +37,7 @@ namespace kstd::platform {
 
         // Generate structure
         // TODO: Add support for multiple addresses
-        _dns_addresses->address_count = dns_addresses.size();
+        _dns_addresses->address_count = max(dns_addresses.size(), 2);
         for(int i = 0; i < _dns_addresses->address_count; ++i) {
             auto address = dns_addresses[i];
             SOCKADDR_IN addr {};
