@@ -20,32 +20,80 @@
 #ifdef PLATFORM_APPLE
 
 #include "kstd/platform/dns.hpp"
-#include <resolv.h>
-#include <array>
 
 namespace kstd::platform {
-    Resolver::Resolver() {
+    Resolver::Resolver(const std::vector<std::string> dns_addresses) :
+            _dns_addresses {dns_addresses} {
+        if(dns_addresses.size() == 0) {
+            throw std::runtime_error("Unable to initialize list of DNS servers: No DNS server specified");
+        }
+    }
+
+    Resolver::Resolver() :
+            _dns_addresses {} {
     }
 
     Resolver::~Resolver() {
     }
 
     auto Resolver::resolve(const std::string& address, const RecordType type) noexcept -> kstd::Result<std::string> {
-        // TODO: Is this really necessary?
-        if (address == "localhost") {
+        if(address == "localhost") {
             switch(type) {
                 case RecordType::A: return kstd::Result<std::string> {"127.0.0.1"};
                 case RecordType::AAAA: return kstd::Result<std::string> {"::1"};
             }
         }
 
-        std::array<u_char, 256> response {};
-        kstd::usize response_length = res_query(address.c_str(), __ns_class::ns_c_in, static_cast<int>(type), response.data(),
-                                                response.size() * sizeof(char));
+        // Init resolv API
+        res_init();
+
+        // Generate custom nameserver list if needed
+        if(_dns_addresses.size() > 0) {
+            _res.nscount = _dns_addresses.size();
+            for(int i = 0; i < _res.nscount; ++i) {
+                if(is_ipv4_address(_dns_addresses[i])) {
+                    _res.nsaddr_list[i].sin_family = AF_INET;
+                }
+                else if(is_ipv6_address(_dns_addresses[i])) {
+                    _res.nsaddr_list[i].sin_family = AF_INET6;
+                }
+                else {
+                    return kstd::Error {
+                        fmt::format("Unable to resolve address of {}: Illegal DNS server address {}", address,
+                                    _dns_addresses[i])
+                    };
+                }
+                _res.nsaddr_list[i].sin_addr.s_addr = ::inet_addr(_dns_addresses[i].c_str());
+                _res.nsaddr_list[i].sin_port = htons(53);
+            }
+        }
+
+        // Send DNS request
+        std::array<u_char, 4096> response_buffer {'\0'};
+        kstd::isize response_length = ::res_query(address.c_str(), __ns_class::ns_c_in, static_cast<int>(type),
+                                                  response_buffer.data(), sizeof(response_buffer));
+
         if(response_length < 0) {
             return kstd::Error {fmt::format("Unable to resolve address {}: {}", address, get_last_error())};
         }
-        return std::string {response.begin(), response.begin()};
+
+        if(response_length == 0) {
+            return kstd::Error {fmt::format("Unable to resolve address {}: There is no response", address)};
+        }
+        return std::string {response_buffer.cbegin(), response_buffer.cbegin() + response_length + 1};
+    }
+
+    auto enumerate_nameservers() noexcept -> kstd::Result<std::vector<std::string>> {
+        res_init();
+        std::vector<std::string> addresses {};
+        for(int i = 0; i < _res.nscount; ++i) {
+            std::array<char, INET_ADDRSTRLEN + 1> address {};
+            inet_ntop(_res.nsaddr_list[i].sin_family, &(_res.nsaddr_list[i].sin_addr.s_addr), address.data(),
+                      INET_ADDRSTRLEN);
+            address[INET_ADDRSTRLEN] = '\0';
+            addresses.push_back(std::string {address.cbegin(), address.cend()});
+        }
+        return addresses;
     }
 }// namespace kstd::platform
 
