@@ -25,7 +25,7 @@
 
 namespace kstd::platform {
 
-    Resolver::Resolver(std::vector<std::string> dns_addresses) {
+    Resolver::Resolver(const std::vector<std::string> dns_addresses) {
         _dns_addresses = {{}};
 
         // Initialize WSA and throw exception if failed
@@ -44,12 +44,12 @@ namespace kstd::platform {
         for(int i = 0; i < _dns_addresses->address_count; ++i) {
             auto address = dns_addresses[i];
             SOCKADDR_IN addr {};
-            if(FAILED(InetPton(AF_INET, address.c_str(), &addr.sin_addr.s_addr))) {// NOLINT
+            if(FAILED(::InetPton(AF_INET, address.c_str(), &addr.sin_addr.S_un.S_addr))) {// NOLINT
                 throw std::runtime_error {
                         fmt::format("Unable to interpret {} as IPv4 and convert it: {}", address, get_last_error())};
             }
 
-            _dns_addresses->addresses[i] = addr.sin_addr.s_addr;// NOLINT
+            _dns_addresses->addresses[i] = addr.sin_addr.S_un.S_addr;// NOLINT
         }
     }
 
@@ -107,7 +107,7 @@ namespace kstd::platform {
                 // Convert binary representation to literal representation of IPv6 address
                 SOCKADDR_IN6 addr {};
                 addr.sin6_family = AF_INET6;
-                addr.sin6_addr = *reinterpret_cast<in_addr6*>(&record->Data.AAAA.Ip6Address);// NOLINT
+                addr.sin6_addr = *reinterpret_cast<in6_addr*>(&record->Data.AAAA.Ip6Address);// NOLINT
 
                 std::array<wchar_t, 128> address_buffer {};
                 DWORD size = address_buffer.size();

@@ -22,8 +22,8 @@
 #include "kstd/platform/dns.hpp"
 
 namespace kstd::platform {
-    Resolver::Resolver(const std::vector<std::string> dns_addresses) :
-            _dns_addresses {dns_addresses} {
+    Resolver::Resolver(std::vector<std::string> dns_addresses) :
+            _dns_addresses {std::move(dns_addresses)} {
         if(dns_addresses.size() == 0) {
             throw std::runtime_error("Unable to initialize list of DNS servers: No DNS server specified");
         }
@@ -33,8 +33,7 @@ namespace kstd::platform {
             _dns_addresses {} {
     }
 
-    Resolver::~Resolver() {
-    }
+    Resolver::~Resolver() = default;
 
     auto Resolver::resolve(const std::string& address, const RecordType type) noexcept -> kstd::Result<std::string> {
         if(address == "localhost") {
@@ -62,13 +61,13 @@ namespace kstd::platform {
                                                     address, _dns_addresses[i])};
                 }
                 _res.nsaddr_list[i].sin_addr.s_addr = ::inet_addr(_dns_addresses[i].c_str());
-                _res.nsaddr_list[i].sin_port = htons(53);
+                _res.nsaddr_list[i].sin_port = ::htons(53);
             }
         }
 
         // Send DNS request
-        std::array<u_char, 4096> response_buffer {'\0'};
-        kstd::isize response_length = ::res_query(address.c_str(), __ns_class::ns_c_in, static_cast<int>(type),
+        std::array<u_char, 512> response_buffer {'\0'};
+        const auto response_length = ::res_query(address.c_str(), __ns_class::ns_c_in, static_cast<int>(type),
                                                   response_buffer.data(), sizeof(response_buffer));
 
         if(response_length < 0) {
@@ -78,7 +77,9 @@ namespace kstd::platform {
         if(response_length == 0) {
             return kstd::Error {fmt::format("Unable to resolve address {}: There is no response", address)};
         }
-        return std::string {response_buffer.cbegin(), response_buffer.cbegin() + response_length + 1};
+
+        const auto response_begin = response_buffer.cbegin();
+        return std::string {response_begin, response_begin + response_length + 1};
     }
 }// namespace kstd::platform
 
