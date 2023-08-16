@@ -29,7 +29,6 @@ endif ()
 # Tests
 if (KSTD_PLATFORM_BUILD_TESTS)
     cmx_add_tests(kstd-platform-tests "${CMAKE_SOURCE_DIR}/test")
-    cmx_include_gtest(kstd-platform-tests PRIVATE)
     target_link_libraries(kstd-platform-tests PRIVATE kstd-platform-static)
     add_dependencies(kstd-platform-tests kstd-platform-static)
 endif ()
