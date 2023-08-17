@@ -21,7 +21,6 @@
 
 #include "kstd/platform/dns.hpp"
 #include <WS2tcpip.h>
-#include <iostream>
 
 namespace kstd::platform {
 
