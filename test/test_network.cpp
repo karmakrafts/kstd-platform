@@ -29,7 +29,11 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
     ASSERT_NO_THROW(result.throw_if_error());// NOLINT
 
     for (const auto& interface : result.get()) {
-        std::cout << interface.name << " - " << interface.description << '\n';
+        std::cout << interface.name << " - " << interface.description;
+        if (interface.link_speed.has_value()) {
+            std::cout << " (" << *interface.link_speed << ')';
+        }
+        std::cout << '\n';
         for (const auto family : interface.address_families) {
             switch (family) {
                 case kstd::platform::AddressFamily::IPv4: std::cout << " - IPv4\n"; break;

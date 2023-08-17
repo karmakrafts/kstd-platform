@@ -20,18 +20,22 @@
 #ifdef PLATFORM_WINDOWS
 
 #define NOMINMAX
+
 #include "kstd/platform/network.hpp"
 #include "kstd/platform/platform.hpp"
 
+#undef CALLBACK
+
 #include <kstd/slice.hpp>
+#include <kstd/streams/stream.hpp>
 
 namespace kstd::platform {
 
-    auto enumerate_interfaces() noexcept -> kstd::Result<std::vector<NetworkInterface>> {
+    auto enumerate_interfaces() noexcept -> Result<std::vector<NetworkInterface>> {
         using namespace std::string_literals;
 
         // Determine size of adapter addresses
-        kstd::usize adapter_addresses_size = 0;
+        usize adapter_addresses_size = 0;
         if(FAILED(GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, nullptr, nullptr,
                                        reinterpret_cast<PULONG>(&adapter_addresses_size)))) {// NOLINT
             return Error {"Unable to allocate adapter addresses information: Unable to determine size of buffer"s};
@@ -42,12 +46,11 @@ namespace kstd::platform {
         if(FAILED(GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, nullptr, adapter_addresses,
                                        reinterpret_cast<PULONG>(&adapter_addresses_size)))) {// NOLINT
             libc::free(adapter_addresses);                                                   // NOLINT
-            return Error {fmt::format("Unable to allocate interface Table: Unable to get Interface table ({})",
-                                      get_last_error())};
+            return Error {get_last_error()};
         }
 
         // Determine size of MIB Interface table
-        kstd::usize mib_if_size = 0;
+        usize mib_if_size = 0;
         if(GetIfTable(nullptr, reinterpret_cast<PULONG>(&mib_if_size), FALSE) != ERROR_INSUFFICIENT_BUFFER) {// NOLINT
             libc::free(adapter_addresses);                                                                   // NOLINT
             return Error {"Unable to allocate interface table: Unable to determine size of buffer"s};
@@ -59,8 +62,7 @@ namespace kstd::platform {
             // Free information and return error
             libc::free(table);            // NOLINT
             libc::free(adapter_addresses);// NOLINT
-            return Error {fmt::format("Unable to allocate interface Table: Unable to get Interface table ({})",
-                                      get_last_error())};
+            return Error {get_last_error()};
         }
 
         // Construct interface vector
@@ -72,35 +74,39 @@ namespace kstd::platform {
             const auto name = utils::to_mbs(static_cast<const WCHAR*>(row.wszName));
 
             // Enumerate over adapter addresses information and save the correct data
-            PIP_ADAPTER_ADDRESSES curr_addresses = nullptr;
-            for(auto* addresses = adapter_addresses; addresses != nullptr; addresses = addresses->Next) {
-                if(name.find(addresses->AdapterName) == std::string::npos) {
-                    continue;
-                }
-
-                curr_addresses = addresses;
-                break;
-            }
+            auto addresses =
+                    streams::stream(adapter_addresses, KSTD_PTR_FIELD_FUNCTOR(Next)).find_first([&](auto& addr) {
+                        return name.find(addr.AdapterName) != std::string::npos;
+                    });
 
             // If some adapter addresses are found, parse the address information
             std::unordered_set<AddressFamily> address_families {};
-            if(curr_addresses != nullptr) {
+            if(addresses) {
+                constexpr auto map_function = KSTD_SCAST_FIELD_FUNCTOR(Address.lpSockaddr->sa_family, AddressFamily);
+
                 // Enumerate Unicast addresses and insert address families
-                for(const auto* addr = curr_addresses->FirstUnicastAddress; addr != nullptr; addr = addr->Next) {
-                    address_families.insert(static_cast<AddressFamily>(addr->Address.lpSockaddr->sa_family));
-                }
+                streams::stream(addresses->FirstUnicastAddress, KSTD_PTR_FIELD_FUNCTOR(Next))
+                        .map(map_function)
+                        .collect_into(address_families, streams::collectors::insert);
 
                 // Enumerate Multicast addresses and insert address families
-                for(const auto* addr = curr_addresses->FirstMulticastAddress; addr != nullptr; addr = addr->Next) {
-                    address_families.insert(static_cast<AddressFamily>(addr->Address.lpSockaddr->sa_family));
-                }
+                streams::stream(addresses->FirstMulticastAddress, KSTD_PTR_FIELD_FUNCTOR(Next))
+                        .map(map_function)
+                        .collect_into(address_families, streams::collectors::insert);
 
                 // Enumerate Anycast addresses and insert address families
-                for(const auto* addr = curr_addresses->FirstAnycastAddress; addr != nullptr; addr = addr->Next) {
-                    address_families.insert(static_cast<AddressFamily>(addr->Address.lpSockaddr->sa_family));
-                }
+                streams::stream(addresses->FirstMulticastAddress, KSTD_PTR_FIELD_FUNCTOR(Next))
+                        .map(map_function)
+                        .collect_into(address_families, streams::collectors::insert);
             }
-            interfaces.push_back(NetworkInterface {name, description, std::move(address_families)});
+
+            // Push interface (Speed from bits to megabytes)
+            Option<usize> speed = row.dwSpeed / 1024 / 1024;
+            if (*speed == 0) {
+                speed = {};
+            }
+
+            interfaces.push_back(NetworkInterface {name, description, std::move(address_families), speed});
         }
 
         // Free information and return interfaces

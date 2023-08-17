@@ -19,21 +19,22 @@
 
 #pragma once
 
+#include <fmt/format.h>
 #include <kstd/result.hpp>
 #include <unordered_set>
-#include <fmt/format.h>
+#include <kstd/option.hpp>
 
 #ifdef PLATFORM_WINDOWS
-#include <kstd/types.hpp>
 #include <Winsock2.h>
 #include <iphlpapi.h>
+#include <kstd/types.hpp>
 #else
 #include <sys/socket.h>
 #endif
 
 namespace kstd::platform {
 
-    enum class AddressFamily : kstd::u8 {
+    enum class AddressFamily : u8 {
         IPv4 = AF_INET,
         IPv6 = AF_INET6,
         UNIX = AF_UNIX,
@@ -41,12 +42,13 @@ namespace kstd::platform {
         APPLE_TALK = AF_APPLETALK
     };
 
-    struct NetworkInterface {
+    struct NetworkInterface final {
         std::string name;
         std::string description;
         std::unordered_set<AddressFamily> address_families;
+        Option<kstd::usize> link_speed;
     };
 
-    [[nodiscard]] auto enumerate_interfaces() noexcept -> kstd::Result<std::vector<NetworkInterface>>;
+    [[nodiscard]] auto enumerate_interfaces() noexcept -> Result<std::vector<NetworkInterface>>;
 
-}
+}// namespace kstd::platform
