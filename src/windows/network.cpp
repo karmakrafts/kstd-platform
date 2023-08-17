@@ -95,7 +95,7 @@ namespace kstd::platform {
                         .collect_into(address_families, streams::collectors::insert);
 
                 // Enumerate Anycast addresses and insert address families
-                streams::stream(addresses->FirstMulticastAddress, KSTD_PTR_FIELD_FUNCTOR(Next))
+                streams::stream(addresses->FirstAnycastAddress, KSTD_PTR_FIELD_FUNCTOR(Next))
                         .map(map_function)
                         .collect_into(address_families, streams::collectors::insert);
             }
