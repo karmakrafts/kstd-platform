@@ -29,13 +29,14 @@
 #include <Winsock2.h>
 #include <iphlpapi.h>
 #include <kstd/types.hpp>
+#include <utility>
 #else
-#include <ifaddrs.h>
-#include <netdb.h>
-#include <net/if_arp.h>
 #include <arpa/inet.h>
-#include <sys/socket.h>
+#include <ifaddrs.h>
 #include <net/if.h>
+#include <net/if_arp.h>
+#include <netdb.h>
+#include <sys/socket.h>
 #endif
 
 namespace kstd::platform {
@@ -75,17 +76,43 @@ namespace kstd::platform {
     };
 #endif
 
-    struct InterfaceAddress final {
-        Option<std::string> address;
-        AddressFamily family;
-        RoutingScheme routing_scheme;
+    class InterfaceAddress final {
+        Option<std::string> _address;
+        AddressFamily _family;
+        RoutingScheme _routing_scheme;
+
+        public:
+        friend struct std::hash<InterfaceAddress>;
+        friend struct NetworkInterface;
+
+        inline InterfaceAddress(Option<std::string> address, AddressFamily family,
+                                RoutingScheme routing_scheme) noexcept :
+                _address {std::move(address)},
+                _family {family},
+                _routing_scheme {routing_scheme} {
+        }
+
+        KSTD_DEFAULT_MOVE_COPY(InterfaceAddress, InterfaceAddress, inline)
+        ~InterfaceAddress() noexcept = default;
 
         [[nodiscard]] inline auto operator==(const InterfaceAddress& other) const noexcept -> bool {
-            return address == other.address && family == other.family && routing_scheme == other.routing_scheme;
+            return _address == other._address && _family == other._family && _routing_scheme == other._routing_scheme;
         }
 
         [[nodiscard]] inline auto operator!=(const InterfaceAddress& other) const noexcept -> bool {
             return !(*this == other);
+        }
+
+        [[nodiscard]] inline auto get_address() const noexcept -> const Option<std::string>& {
+            return _address;
+        }
+
+        [[nodiscard]] inline auto get_family() const noexcept -> AddressFamily {
+            return _family;
+        }
+
+        [[nodiscard]] inline auto get_routing_scheme() const noexcept -> RoutingScheme {
+            return _routing_scheme;
         }
     };
 
@@ -122,19 +149,44 @@ namespace kstd::platform {
     }
 }// namespace kstd::platform
 
-KSTD_DEFAULT_HASH((kstd::platform::InterfaceAddress), value.address, value.family, value.routing_scheme);
+KSTD_DEFAULT_HASH((kstd::platform::InterfaceAddress), value._address, value._family, value._routing_scheme);
 
 namespace kstd::platform {
-    struct NetworkInterface final {
-        std::string name;
-        std::string description;
-        std::unordered_set<InterfaceAddress> addresses;
-        Option<kstd::usize> link_speed;
-        InterfaceType type;
+    class NetworkInterface final {
+        std::string _name;
+        std::string _description;
+        std::unordered_set<InterfaceAddress> _addresses;
+        Option<usize> _link_speed;
+        InterfaceType _type;
+
+        public:
+        friend struct std::hash<NetworkInterface>;
+
+        inline NetworkInterface(std::string name, std::string description,
+                                std::unordered_set<InterfaceAddress> addresses, Option<usize> link_speed,
+                                InterfaceType type) noexcept :
+                _name {std::move(name)},
+                _description {std::move(description)},
+                _addresses {std::move(addresses)},
+                _link_speed {link_speed},
+                _type {type} {
+        }
+
+        KSTD_DEFAULT_MOVE_COPY(NetworkInterface, NetworkInterface, inline)
+        ~NetworkInterface() noexcept = default;
+
+        [[nodiscard]] inline auto operator==(const NetworkInterface& other) const noexcept -> bool {
+            return _name == other._name && _description == other._description && _addresses == other._addresses &&
+                   _link_speed == other._link_speed && _type == other._type;
+        }
+
+        [[nodiscard]] inline auto operator!=(const NetworkInterface& other) const noexcept -> bool {
+            return !(*this == other);
+        }
 
         [[nodiscard]] inline auto has_addresses_by_family(const AddressFamily family) const noexcept -> bool {
             // clang-format off
-            return streams::stream(addresses).map(KSTD_FIELD_FUNCTOR(family)).find_first([&](auto value) {
+            return streams::stream(_addresses).map(KSTD_FIELD_FUNCTOR(_family)).find_first([&](auto value) {
                 return value == family;
             }).has_value();
             // clang-format on
@@ -142,12 +194,42 @@ namespace kstd::platform {
 
         [[nodiscard]] inline auto has_addresses_with_routing_scheme(const RoutingScheme scheme) const noexcept -> bool {
             // clang-format off
-            return streams::stream(addresses).map(KSTD_FIELD_FUNCTOR(routing_scheme)).find_first([&](auto value) {
+            return streams::stream(_addresses).map(KSTD_FIELD_FUNCTOR(_routing_scheme)).find_first([&](auto value) {
                 return value == scheme;
             }).has_value();
             // clang-format on
         }
+
+        inline auto insert_address(const InterfaceAddress address) noexcept -> void {
+            _addresses.insert(address);
+        }
+
+        [[nodiscard]] auto get_name() const noexcept -> const std::string& {
+            return _name;
+        }
+
+        [[nodiscard]] auto get_description() const noexcept -> const std::string& {
+            return _description;
+        }
+
+        [[nodiscard]] auto get_addresses() const noexcept -> const std::unordered_set<InterfaceAddress>& {
+            return _addresses;
+        }
+
+        [[nodiscard]] auto get_link_speed() const noexcept -> Option<usize> {
+            return _link_speed;
+        }
+
+        [[nodiscard]] auto get_type() const noexcept -> InterfaceType {
+            return _type;
+        }
     };
 
-    [[nodiscard]] auto enumerate_interfaces() noexcept -> Result<std::vector<NetworkInterface>>;
+    [[nodiscard]] auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>>;
 }// namespace kstd::platform
+
+KSTD_HASH((kstd::platform::NetworkInterface), [&] {
+    auto result = kstd::hash(value._name, value._description, value._link_speed, value._type);
+    kstd::combined_hash_into(result, kstd::hash_range(value._addresses.cbegin(), value._addresses.cend()));
+    return result;
+}())

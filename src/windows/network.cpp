@@ -46,7 +46,7 @@ namespace kstd::platform {
         return kstd::utils::to_mbs({address_buffer.data(), static_cast<usize>(length)});
     }
 
-    auto enumerate_interfaces() noexcept -> Result<std::vector<NetworkInterface>> {
+    auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>> {
         using namespace std::string_literals;
 
         // Determine size of adapter addresses
@@ -81,7 +81,7 @@ namespace kstd::platform {
         }
 
         // Construct interface vector
-        std::vector<NetworkInterface> interfaces {};
+        std::unordered_set<NetworkInterface> interfaces {};
         for(const auto row : Slice {static_cast<PMIB_IFROW>(table->table), table->dwNumEntries * sizeof(MIB_IFROW)}) {
             // Generate name and description
             const auto description =
@@ -144,7 +144,7 @@ namespace kstd::platform {
                 speed = {};
             }
 
-            interfaces.push_back(NetworkInterface {name, description, std::move(if_addrs), speed, static_cast<InterfaceType>(row.dwType)});
+            interfaces.insert(NetworkInterface {name, description, std::move(if_addrs), speed, static_cast<InterfaceType>(row.dwType)});
         }
 
         // Free information and return interfaces

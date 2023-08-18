@@ -46,7 +46,7 @@ namespace kstd::platform {
         }
     }
 
-    auto enumerate_interfaces() noexcept -> Result<std::vector<NetworkInterface>> {
+    auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>> {
         InterfaceAddresses* addresses = nullptr;
         if(::getifaddrs(&addresses) < 0) {
             return Error {get_last_error()};
@@ -59,7 +59,7 @@ namespace kstd::platform {
 
             // clang-format off
             Option<NetworkInterface&> original_interface = streams::stream(interfaces).find_first([&](auto& interface) {
-                return interface.description == description;
+                return interface.get_description() == description;
             });
             // clang-format on
 
@@ -103,7 +103,7 @@ namespace kstd::platform {
 
                 // Add address to original interface if there is one. If not, add the address to the addrs set
                 if (original_interface.has_value()) {
-                    original_interface->addresses.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
+                    original_interface->insert_address(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
                 } else {
                     addrs.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
                 }
@@ -156,7 +156,7 @@ namespace kstd::platform {
         }
 
         freeifaddrs(addresses);
-        return interfaces;
+        return std::unordered_set {interfaces.begin(), interfaces.end()};
     }
 }// namespace kstd::platform
 
