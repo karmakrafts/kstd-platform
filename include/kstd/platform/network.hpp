@@ -46,7 +46,12 @@ namespace kstd::platform {
         IPv6 = AF_INET6,
         UNIX = AF_UNIX,
         IPX = AF_IPX,
-        APPLE_TALK = AF_APPLETALK
+        APPLE_TALK = AF_APPLETALK,
+#ifdef PLATFORM_WINDOWS
+        MAC = AF_LINK
+#else
+        MAC = AF_PACKET
+#endif
     };
 
     enum class RoutingScheme : u8 {
@@ -133,6 +138,7 @@ namespace kstd::platform {
             case AddressFamily::IPv6: return "IPv6";
             case AddressFamily::UNIX: return "UNIX";
             case AddressFamily::IPX: return "IPX";
+            case AddressFamily::MAC: return "MAC";
             case AddressFamily::APPLE_TALK: return "AppleTalk";
             default: return "Unknown";
         }
@@ -176,13 +182,12 @@ namespace kstd::platform {
         KSTD_DEFAULT_MOVE_COPY(NetworkInterface, NetworkInterface, inline)
         ~NetworkInterface() noexcept = default;
 
-        [[nodiscard]] inline auto operator==(const NetworkInterface& other) const noexcept -> bool {
-            return _name == other._name && _description == other._description && _addresses == other._addresses &&
-                   _link_speed == other._link_speed && _type == other._type;
-        }
-
-        [[nodiscard]] inline auto operator!=(const NetworkInterface& other) const noexcept -> bool {
-            return !(*this == other);
+        [[nodiscard]] inline auto get_mac_address() const noexcept -> const std::string& {
+            // clang-format off
+            return streams::stream(_addresses).find_first([](auto& address) {
+                return address._family == AddressFamily::MAC;
+            })->_address.get();
+            // clang-format on
         }
 
         [[nodiscard]] inline auto has_addresses_by_family(const AddressFamily family) const noexcept -> bool {
@@ -227,6 +232,15 @@ namespace kstd::platform {
 
         [[nodiscard]] auto get_max_transfer() const noexcept -> usize {
             return _max_transfer;
+        }
+
+        [[nodiscard]] inline auto operator==(const NetworkInterface& other) const noexcept -> bool {
+            return _name == other._name && _description == other._description && _addresses == other._addresses &&
+                   _link_speed == other._link_speed && _type == other._type;
+        }
+
+        [[nodiscard]] inline auto operator!=(const NetworkInterface& other) const noexcept -> bool {
+            return !(*this == other);
         }
     };
 

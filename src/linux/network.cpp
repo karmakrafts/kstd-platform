@@ -26,18 +26,13 @@
 #include <filesystem>
 #include <fstream>
 #include <ifaddrs.h>
-#include <iostream>
 #include <kstd/safe_alloc.hpp>
+#include <linux/if_packet.h>
 #include <unistd.h>
 
 #define INT_FILE_CAST_FUNCTOR(t)                                                                                       \
     [](auto value) noexcept -> auto {                                                                                  \
         return static_cast<t>(std::stoi(value));                                                                       \
-    }
-
-#define INT_FILE_FUNCTOR(t)                                                                                            \
-    [](auto value) noexcept -> auto {                                                                                  \
-        return std::stoi(value);                                                                                       \
     }
 
 namespace kstd::platform {
@@ -114,9 +109,17 @@ namespace kstd::platform {
                         address = std::string {data.cbegin(), data.cend()};
                         break;
                     }
+                    case AF_PACKET: {
+                        struct sockaddr_ll* mac = (struct sockaddr_ll*) addr->ifa_addr;
+                        address = fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}", mac->sll_addr[0],
+                                              mac->sll_addr[1], mac->sll_addr[2], mac->sll_addr[3], mac->sll_addr[4],
+                                              mac->sll_addr[5]);
+                    }
                     default: break;
                 }
 
+                // TODO: Look into the routing table and check if the address is an Anycast address
+                // Check if routing scheme is Multicast or Unicast
                 auto routing_scheme = RoutingScheme::UNKNOWN;
                 if(address.has_value()) {
                     if(is_multicast(addr_family, *address)) {
@@ -154,7 +157,7 @@ namespace kstd::platform {
                 // Interface Speed
                 const auto speed = read_file(if_path / "speed").map(INT_FILE_CAST_FUNCTOR(usize));
 
-                // Get interface type
+                // Get type
                 auto type = read_file(if_path / "type").map(INT_FILE_CAST_FUNCTOR(InterfaceType))
                     .get_or(InterfaceType::UNKNOWN);
                 if(std::filesystem::exists(if_path / "ieee80211")) {

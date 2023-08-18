@@ -142,6 +142,12 @@ namespace kstd::platform {
                         .collect_into(if_addrs, streams::collectors::insert);
             }
 
+            // Add MAC address to addresses
+            if_addrs.insert(InterfaceAddress {fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}", row.bPhysAddr[0],
+                                                          row.bPhysAddr[1], row.bPhysAddr[2], row.bPhysAddr[3],
+                                                          row.bPhysAddr[4], row.bPhysAddr[5]),
+                                              AddressFamily::MAC, RoutingScheme::UNKNOWN});
+
             // Push interface (Speed from bits to megabytes)
             Option<usize> speed = row.dwSpeed / 1024 / 1024;
             if(*speed == 0) {
