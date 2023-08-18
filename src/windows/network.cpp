@@ -51,16 +51,18 @@ namespace kstd::platform {
     auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>> {
         using namespace std::string_literals;
 
+        constexpr auto adapter_addrs_flags = GAA_FLAG_INCLUDE_GATEWAYS | GAA_FLAG_INCLUDE_ALL_INTERFACES | GAA_FLAG_INCLUDE_PREFIX;
+
         // Determine size of adapter addresses
         usize adapter_addresses_size = 0;
-        if(FAILED(::GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, nullptr, nullptr,
+        if(FAILED(::GetAdaptersAddresses(AF_UNSPEC, adapter_addrs_flags, nullptr, nullptr,
                                          reinterpret_cast<PULONG>(&adapter_addresses_size)))) {// NOLINT
             return Error {"Unable to allocate adapter addresses information: Unable to determine size of buffer"s};
         }
 
         // Allocate adapter addresses holder and get address information
         auto* adapter_addresses = static_cast<PIP_ADAPTER_ADDRESSES>(libc::malloc(adapter_addresses_size));// NOLINT
-        if(FAILED(::GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, nullptr, adapter_addresses,
+        if(FAILED(::GetAdaptersAddresses(AF_UNSPEC, adapter_addrs_flags, nullptr, adapter_addresses,
                                          reinterpret_cast<PULONG>(&adapter_addresses_size)))) {// NOLINT
             libc::free(adapter_addresses);                                                     // NOLINT
             return Error {get_last_error()};
