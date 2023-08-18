@@ -23,57 +23,99 @@
 #include "kstd/platform/file_mapping.hpp"
 #include "kstd/platform/platform.hpp"
 #include <array>
-#include <ifaddrs.h>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
+#include <ifaddrs.h>
+#include <iostream>
 #include <kstd/safe_alloc.hpp>
 #include <unistd.h>
 
 namespace kstd::platform {
     using namespace std::string_literals;
-    using InterfaceAddress = struct ifaddrs;
+    using InterfaceAddresses = struct ifaddrs;
 
     auto enumerate_interfaces() noexcept -> Result<std::vector<NetworkInterface>> {
-        InterfaceAddress* addresses = nullptr;
+        InterfaceAddresses* addresses = nullptr;
         if(getifaddrs(&addresses) < 0) {
             return Error {get_last_error()};
         }
 
         std::vector<NetworkInterface> interfaces {};
         for(const auto* addr = addresses; addr != nullptr; addr = addr->ifa_next) {
+            // Get description
             const auto description = std::string {addr->ifa_name};
 
-            // Create if path
-            std::array<char, max_path> buffer {};
-            const auto path = fmt::format("/sys/class/net/{}", description);
-            if(::readlink(path.c_str(), buffer.data(), max_path) == -1) {
-                return Error {get_last_error()};
-            }
+            // clang-format off
+            Option<NetworkInterface&> original_interface = streams::stream(interfaces).find_first([&](auto& interface) {
+                return interface.description == description;
+            });
+            // clang-format on
 
             // Get address family of interface
-            std::unordered_set<AddressFamily> address_families {};
+            std::unordered_set<InterfaceAddress> addrs {};
             if(addr->ifa_addr != nullptr) {
-                address_families.insert(static_cast<AddressFamily>(addr->ifa_addr->sa_family));
-            }
+                Option<std::string> address {};
+                const auto addr_family = addr->ifa_addr->sa_family;
 
-            // Create path string
-            std::filesystem::current_path("/sys/class/net");
-            const auto if_path = std::filesystem::canonical(std::string {buffer.data()});
+                // Format address to string
+                switch(addr->ifa_addr->sa_family) {
+                    case AF_INET: {
+                        std::array<char, INET_ADDRSTRLEN> data {};
+                        if(inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(addr->ifa_addr)->sin_addr, data.data(),
+                                     sizeof(data)) == nullptr) {
+                            break;
+                        }
+                        address = std::string {data.cbegin(), data.cend()};
+                        break;
+                    }
+                    case AF_INET6: {
+                        std::array<char, INET6_ADDRSTRLEN> data {};
+                        if(inet_ntop(AF_INET6, &reinterpret_cast<sockaddr_in6*>(addr->ifa_addr)->sin6_addr, data.data(),
+                                     data.size()) == nullptr) {
+                            break;
+                        }
+                        address = std::string {data.cbegin(), data.cend()};
+                        break;
+                    }
+                    default: break;
+                }
 
-            // Get interface speed
-            const auto speed_path = if_path / "speed";
-            Option<usize> interface_speed {};
-            if(std::filesystem::exists(speed_path)) {
-                std::ifstream stream {speed_path};
-                std::string speed {};
-                stream >> speed;
-                if (!speed.empty()) {
-                    interface_speed = std::stoi(speed);
+                // Add address to original interface if there is one. If not, add the address to the addrs set
+                if (original_interface.has_value()) {
+                    original_interface->addresses.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), RoutingScheme::UNICAST});
+                } else {
+                    addrs.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), RoutingScheme::UNICAST});
                 }
             }
 
-            // Push new interface
-            interfaces.push_back(NetworkInterface {if_path, description, address_families, interface_speed});
+            // Add interface only if there is no original interface
+            if (original_interface.is_empty()) {
+                // Create if path
+                std::array<char, max_path> buffer {};
+                const auto path = fmt::format("/sys/class/net/{}", description);
+                if(::readlink(path.c_str(), buffer.data(), max_path) == -1) {
+                    return Error {get_last_error()};
+                }
+
+                // Create path string
+                std::filesystem::current_path("/sys/class/net");
+                const auto if_path = std::filesystem::canonical(std::string {buffer.data()});
+
+                // Get interface speed
+                const auto speed_path = if_path / "speed";
+                Option<usize> interface_speed {};
+                if(std::filesystem::exists(speed_path)) {
+                    std::ifstream stream {speed_path};
+                    std::string speed {};
+                    stream >> speed;
+                    if(!speed.empty()) {
+                        interface_speed = std::stoi(speed);
+                    }
+                }
+
+                // Push new interface
+                interfaces.push_back(NetworkInterface {if_path, description, std::move(addrs), interface_speed});
+            }
         }
 
         freeifaddrs(addresses);

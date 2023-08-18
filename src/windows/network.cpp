@@ -27,23 +27,38 @@
 #undef CALLBACK
 
 #include <kstd/slice.hpp>
-#include <kstd/streams/stream.hpp>
 
 namespace kstd::platform {
+    [[nodiscard]] inline auto get_address_string_by_address(LPSOCKADDR address) -> Option<std::string> {
+        DWORD length = INET6_ADDRSTRLEN;
+        std::array<wchar_t, INET6_ADDRSTRLEN> address_buffer {};
+        switch (address->sa_family) {
+            case AF_INET: {
+                ::InetNtopW(AF_INET, &reinterpret_cast<sockaddr_in*>(address)->sin_addr, address_buffer.data(), length);// NOLINT
+                break;
+            }
+            case AF_INET6: {
+                ::InetNtopW(AF_INET6, &reinterpret_cast<sockaddr_in6*>(address)->sin6_addr, address_buffer.data(), length);// NOLINT
+                break;
+            }
+            default: return {};
+        }
+        return kstd::utils::to_mbs({address_buffer.data(), static_cast<usize>(length)});
+    }
 
     auto enumerate_interfaces() noexcept -> Result<std::vector<NetworkInterface>> {
         using namespace std::string_literals;
 
         // Determine size of adapter addresses
         usize adapter_addresses_size = 0;
-        if(FAILED(GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, nullptr, nullptr,
+        if(FAILED(::GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, nullptr, nullptr,
                                        reinterpret_cast<PULONG>(&adapter_addresses_size)))) {// NOLINT
             return Error {"Unable to allocate adapter addresses information: Unable to determine size of buffer"s};
         }
 
         // Allocate adapter addresses holder and get address information
         auto* adapter_addresses = static_cast<PIP_ADAPTER_ADDRESSES>(libc::malloc(adapter_addresses_size));// NOLINT
-        if(FAILED(GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, nullptr, adapter_addresses,
+        if(FAILED(::GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, nullptr, adapter_addresses,
                                        reinterpret_cast<PULONG>(&adapter_addresses_size)))) {// NOLINT
             libc::free(adapter_addresses);                                                   // NOLINT
             return Error {get_last_error()};
@@ -51,14 +66,14 @@ namespace kstd::platform {
 
         // Determine size of MIB Interface table
         usize mib_if_size = 0;
-        if(GetIfTable(nullptr, reinterpret_cast<PULONG>(&mib_if_size), FALSE) != ERROR_INSUFFICIENT_BUFFER) {// NOLINT
+        if(::GetIfTable(nullptr, reinterpret_cast<PULONG>(&mib_if_size), FALSE) != ERROR_INSUFFICIENT_BUFFER) {// NOLINT
             libc::free(adapter_addresses);                                                                   // NOLINT
             return Error {"Unable to allocate interface table: Unable to determine size of buffer"s};
         }
 
         // Allocate table and get interface table
         auto* table = static_cast<MIB_IFTABLE*>(libc::malloc(mib_if_size));           // NOLINT
-        if(FAILED(GetIfTable(table, reinterpret_cast<PULONG>(&mib_if_size), FALSE))) {// NOLINT
+        if(FAILED(::GetIfTable(table, reinterpret_cast<PULONG>(&mib_if_size), FALSE))) {// NOLINT
             // Free information and return error
             libc::free(table);            // NOLINT
             libc::free(adapter_addresses);// NOLINT
@@ -80,33 +95,56 @@ namespace kstd::platform {
                     });
 
             // If some adapter addresses are found, parse the address information
-            std::unordered_set<AddressFamily> address_families {};
+            std::unordered_set<InterfaceAddress> if_addrs {};
+            auto current_address_type = RoutingScheme::UNICAST;
             if(addresses) {
-                constexpr auto map_function = KSTD_SCAST_FIELD_FUNCTOR(Address.lpSockaddr->sa_family, AddressFamily);
+                // Create function to map from Windows address construct to Interface address
+                const auto map_function = [&](auto& value) noexcept {
+                    Option<std::string> address {};
+                    // Check if address family can be converted by the API
+                    switch(value.Address.lpSockaddr->sa_family) {
+                        case AF_INET: case AF_INET6: {
+                            // Format IPv4 and IPv6 addresses to string if possible
+                            const auto addr = get_address_string_by_address(value.Address.lpSockaddr);
+                            if (!addr) {
+                                break;
+                            }
+
+                            address = *addr;
+                            break;
+                        }
+                        default: break;
+                    }
+
+                    // Construct interface address
+                    return InterfaceAddress {address, static_cast<AddressFamily>(value.Address.lpSockaddr->sa_family), current_address_type};
+                };
 
                 // Enumerate Unicast addresses and insert address families
                 streams::stream(addresses->FirstUnicastAddress, KSTD_PTR_FIELD_FUNCTOR(Next))
                         .map(map_function)
-                        .collect_into(address_families, streams::collectors::insert);
+                        .collect_into(if_addrs, streams::collectors::insert);
 
                 // Enumerate Multicast addresses and insert address families
+                current_address_type = RoutingScheme::MULTICAST;
                 streams::stream(addresses->FirstMulticastAddress, KSTD_PTR_FIELD_FUNCTOR(Next))
                         .map(map_function)
-                        .collect_into(address_families, streams::collectors::insert);
+                        .collect_into(if_addrs, streams::collectors::insert);
 
                 // Enumerate Anycast addresses and insert address families
+                current_address_type = RoutingScheme::ANYCAST;
                 streams::stream(addresses->FirstAnycastAddress, KSTD_PTR_FIELD_FUNCTOR(Next))
                         .map(map_function)
-                        .collect_into(address_families, streams::collectors::insert);
+                        .collect_into(if_addrs, streams::collectors::insert);
             }
 
             // Push interface (Speed from bits to megabytes)
             Option<usize> speed = row.dwSpeed / 1024 / 1024;
-            if (*speed == 0) {
+            if(*speed == 0) {
                 speed = {};
             }
 
-            interfaces.push_back(NetworkInterface {name, description, std::move(address_families), speed});
+            interfaces.push_back(NetworkInterface {name, description, std::move(if_addrs), speed});
         }
 
         // Free information and return interfaces

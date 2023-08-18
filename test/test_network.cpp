@@ -28,20 +28,19 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
     const auto result = kstd::platform::enumerate_interfaces();
     ASSERT_NO_THROW(result.throw_if_error());// NOLINT
 
-    for (const auto& interface : result.get()) {
+    for(const auto& interface : *result) {
         std::cout << interface.name << " - " << interface.description;
-        if (interface.link_speed.has_value()) {
+        if(interface.link_speed.has_value()) {
             std::cout << " (" << *interface.link_speed << ')';
         }
         std::cout << '\n';
-        for (const auto family : interface.address_families) {
-            switch (family) {
-                case kstd::platform::AddressFamily::IPv4: std::cout << " - IPv4\n"; break;
-                case kstd::platform::AddressFamily::IPv6: std::cout << " - IPv6\n"; break;
-                case kstd::platform::AddressFamily::UNIX: std::cout << " - UNIX\n"; break;
-                case kstd::platform::AddressFamily::IPX: std::cout << " - IPX\n"; break;
-                case kstd::platform::AddressFamily::APPLE_TALK: std::cout << " - Apple Talk\n"; break;
+        for(const auto& address : interface.addresses) {
+            std::cout << " - ";
+            if (address.address.has_value()) {
+                std::cout << *address.address << ' ';
             }
+            std::cout << "(" << kstd::platform::get_address_family_name(address.family)
+                      << '/' << kstd::platform::get_routing_scheme_name(address.routing_scheme) << ")\n";
         }
     }
 }

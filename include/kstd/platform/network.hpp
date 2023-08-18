@@ -20,15 +20,20 @@
 #pragma once
 
 #include <fmt/format.h>
-#include <kstd/result.hpp>
-#include <unordered_set>
 #include <kstd/option.hpp>
+#include <kstd/result.hpp>
+#include <kstd/streams/stream.hpp>
+#include <unordered_set>
 
 #ifdef PLATFORM_WINDOWS
 #include <Winsock2.h>
 #include <iphlpapi.h>
 #include <kstd/types.hpp>
 #else
+#include <ifaddrs.h>
+#include <netdb.h>
+#include <linux/if_link.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #endif
 
@@ -42,13 +47,72 @@ namespace kstd::platform {
         APPLE_TALK = AF_APPLETALK
     };
 
+    enum class RoutingScheme : u8 {
+        UNICAST,
+        MULTICAST,
+        ANYCAST
+    };
+
+    struct InterfaceAddress final {
+        Option<std::string> address;
+        AddressFamily family;
+        RoutingScheme routing_scheme;
+
+        [[nodiscard]] inline auto operator==(const InterfaceAddress& other) const noexcept -> bool {
+            return address == other.address && family == other.family && routing_scheme == other.routing_scheme;
+        }
+
+        [[nodiscard]] inline auto operator!=(const InterfaceAddress& other) const noexcept -> bool {
+            return !(*this == other);
+        }
+    };
+
+    [[nodiscard]] inline auto get_address_family_name(const AddressFamily family) noexcept -> std::string {
+        switch(family) {
+            case AddressFamily::IPv4: return "IPv4";
+            case AddressFamily::IPv6: return "IPv6";
+            case AddressFamily::UNIX: return "UNIX";
+            case AddressFamily::IPX: return "IPX";
+            case AddressFamily::APPLE_TALK: return "AppleTalk";
+            default: return "Unknown";
+        }
+    }
+
+    [[nodiscard]] inline auto get_routing_scheme_name(const RoutingScheme type) noexcept -> std::string {
+        switch(type) {
+            case RoutingScheme::UNICAST: return "Unicast";
+            case RoutingScheme::MULTICAST: return "Multicast";
+            case RoutingScheme::ANYCAST: return "Anycast";
+            default: return "Unknown";
+        }
+    }
+}// namespace kstd::platform
+
+KSTD_DEFAULT_HASH((kstd::platform::InterfaceAddress), value.address, value.family, value.routing_scheme);
+
+namespace kstd::platform {
     struct NetworkInterface final {
         std::string name;
         std::string description;
-        std::unordered_set<AddressFamily> address_families;
+        std::unordered_set<InterfaceAddress> addresses;
         Option<kstd::usize> link_speed;
+
+        [[nodiscard]] inline auto has_addresses_by_family(const AddressFamily family) const noexcept -> bool {
+            // clang-format off
+            return streams::stream(addresses).map(KSTD_FIELD_FUNCTOR(family)).find_first([&](auto value) {
+                return value == family;
+            }).has_value();
+            // clang-format on
+        }
+
+        [[nodiscard]] inline auto has_addresses_with_routing_scheme(const RoutingScheme scheme) const noexcept -> bool {
+            // clang-format off
+            return streams::stream(addresses).map(KSTD_FIELD_FUNCTOR(routing_scheme)).find_first([&](auto value) {
+                return value == scheme;
+            }).has_value();
+            // clang-format on
+        }
     };
 
     [[nodiscard]] auto enumerate_interfaces() noexcept -> Result<std::vector<NetworkInterface>>;
-
 }// namespace kstd::platform
