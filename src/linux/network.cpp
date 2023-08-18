@@ -35,7 +35,7 @@ namespace kstd::platform {
     using InterfaceAddresses = struct ifaddrs;
 
     auto is_multicast(usize addr_family, std::string address) -> bool {
-        switch (addr_family) {
+        switch(addr_family) {
             case AF_INET: return (ntohl(inet_addr(address.data())) & 0xF0000000) == 0xE0000000;
             case AF_INET6: {
                 struct sockaddr_in6 sockaddr6;
@@ -74,7 +74,7 @@ namespace kstd::platform {
                     case AF_INET: {
                         std::array<char, INET_ADDRSTRLEN> data {};
                         if(::inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(addr->ifa_addr)->sin_addr, data.data(),
-                                     sizeof(data)) == nullptr) {
+                                       sizeof(data)) == nullptr) {
                             break;
                         }
                         address = std::string {data.cbegin(), data.cend()};
@@ -82,8 +82,8 @@ namespace kstd::platform {
                     }
                     case AF_INET6: {
                         std::array<char, INET6_ADDRSTRLEN> data {};
-                        if(::inet_ntop(AF_INET6, &reinterpret_cast<sockaddr_in6*>(addr->ifa_addr)->sin6_addr, data.data(),
-                                     data.size()) == nullptr) {
+                        if(::inet_ntop(AF_INET6, &reinterpret_cast<sockaddr_in6*>(addr->ifa_addr)->sin6_addr,
+                                       data.data(), data.size()) == nullptr) {
                             break;
                         }
                         address = std::string {data.cbegin(), data.cend()};
@@ -93,24 +93,27 @@ namespace kstd::platform {
                 }
 
                 auto routing_scheme = RoutingScheme::UNKNOWN;
-                if (address.has_value()) {
-                    if (is_multicast(addr_family, *address)) {
+                if(address.has_value()) {
+                    if(is_multicast(addr_family, *address)) {
                         routing_scheme = RoutingScheme::MULTICAST;
-                    } else {
+                    }
+                    else {
                         routing_scheme = RoutingScheme::UNICAST;
                     }
                 }
 
                 // Add address to original interface if there is one. If not, add the address to the addrs set
-                if (original_interface.has_value()) {
-                    original_interface->insert_address(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
-                } else {
+                if(original_interface.has_value()) {
+                    original_interface->insert_address(
+                            InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
+                }
+                else {
                     addrs.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
                 }
             }
 
             // Add interface only if there is no original interface
-            if (original_interface.is_empty()) {
+            if(original_interface.is_empty()) {
                 // Create if path
                 std::array<char, max_path> buffer {};
                 const auto path = fmt::format("/sys/class/net/{}", description);
@@ -136,11 +139,11 @@ namespace kstd::platform {
 
                 // Get interface type
                 auto interface_type = InterfaceType::ATM;
-                if (std::filesystem::exists(if_path / "ieee80211")) {
+                if(std::filesystem::exists(if_path / "ieee80211")) {
                     interface_type = InterfaceType::WIRELESS;
                 }
 
-                if (interface_type == InterfaceType::ATM) {
+                if(interface_type == InterfaceType::ATM) {
                     const auto type_path = if_path / "type";
                     if(std::filesystem::exists(type_path)) {
                         std::ifstream stream {type_path};
@@ -151,7 +154,8 @@ namespace kstd::platform {
                 }
 
                 // Push new interface
-                interfaces.push_back(NetworkInterface {if_path, description, std::move(addrs), interface_speed, interface_type});
+                interfaces.push_back(
+                        NetworkInterface {if_path, description, std::move(addrs), interface_speed, interface_type});
             }
         }
 

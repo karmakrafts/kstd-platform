@@ -37,11 +37,11 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
         std::cout << " (" << kstd::platform::get_interface_type_name(interface.get_type()) << ")\n";
         for(const auto& address : interface.get_addresses()) {
             std::cout << " - ";
-            if (address.get_address().has_value()) {
+            if(address.get_address().has_value()) {
                 std::cout << *address.get_address() << ' ';
             }
-            std::cout << "(" << kstd::platform::get_address_family_name(address.get_family())
-                      << '/' << kstd::platform::get_routing_scheme_name(address.get_routing_scheme()) << ")\n";
+            std::cout << "(" << kstd::platform::get_address_family_name(address.get_family()) << '/'
+                      << kstd::platform::get_routing_scheme_name(address.get_routing_scheme()) << ")\n";
         }
     }
 }

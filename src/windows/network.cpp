@@ -32,13 +32,15 @@ namespace kstd::platform {
     [[nodiscard]] inline auto get_address_string_by_address(LPSOCKADDR address) -> Option<std::string> {
         DWORD length = INET6_ADDRSTRLEN;
         std::array<wchar_t, INET6_ADDRSTRLEN> address_buffer {};
-        switch (address->sa_family) {
+        switch(address->sa_family) {
             case AF_INET: {
-                ::InetNtopW(AF_INET, &reinterpret_cast<sockaddr_in*>(address)->sin_addr, address_buffer.data(), length);// NOLINT
+                ::InetNtopW(AF_INET, &reinterpret_cast<sockaddr_in*>(address)->sin_addr, address_buffer.data(),
+                            length);// NOLINT
                 break;
             }
             case AF_INET6: {
-                ::InetNtopW(AF_INET6, &reinterpret_cast<sockaddr_in6*>(address)->sin6_addr, address_buffer.data(), length);// NOLINT
+                ::InetNtopW(AF_INET6, &reinterpret_cast<sockaddr_in6*>(address)->sin6_addr, address_buffer.data(),
+                            length);// NOLINT
                 break;
             }
             default: return {};
@@ -52,27 +54,27 @@ namespace kstd::platform {
         // Determine size of adapter addresses
         usize adapter_addresses_size = 0;
         if(FAILED(::GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, nullptr, nullptr,
-                                       reinterpret_cast<PULONG>(&adapter_addresses_size)))) {// NOLINT
+                                         reinterpret_cast<PULONG>(&adapter_addresses_size)))) {// NOLINT
             return Error {"Unable to allocate adapter addresses information: Unable to determine size of buffer"s};
         }
 
         // Allocate adapter addresses holder and get address information
         auto* adapter_addresses = static_cast<PIP_ADAPTER_ADDRESSES>(libc::malloc(adapter_addresses_size));// NOLINT
         if(FAILED(::GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, nullptr, adapter_addresses,
-                                       reinterpret_cast<PULONG>(&adapter_addresses_size)))) {// NOLINT
-            libc::free(adapter_addresses);                                                   // NOLINT
+                                         reinterpret_cast<PULONG>(&adapter_addresses_size)))) {// NOLINT
+            libc::free(adapter_addresses);                                                     // NOLINT
             return Error {get_last_error()};
         }
 
         // Determine size of MIB Interface table
         usize mib_if_size = 0;
         if(::GetIfTable(nullptr, reinterpret_cast<PULONG>(&mib_if_size), FALSE) != ERROR_INSUFFICIENT_BUFFER) {// NOLINT
-            libc::free(adapter_addresses);                                                                   // NOLINT
+            libc::free(adapter_addresses);                                                                     // NOLINT
             return Error {"Unable to allocate interface table: Unable to determine size of buffer"s};
         }
 
         // Allocate table and get interface table
-        auto* table = static_cast<MIB_IFTABLE*>(libc::malloc(mib_if_size));           // NOLINT
+        auto* table = static_cast<MIB_IFTABLE*>(libc::malloc(mib_if_size));             // NOLINT
         if(FAILED(::GetIfTable(table, reinterpret_cast<PULONG>(&mib_if_size), FALSE))) {// NOLINT
             // Free information and return error
             libc::free(table);            // NOLINT
@@ -103,10 +105,11 @@ namespace kstd::platform {
                     Option<std::string> address {};
                     // Check if address family can be converted by the API
                     switch(value.Address.lpSockaddr->sa_family) {
-                        case AF_INET: case AF_INET6: {
+                        case AF_INET:
+                        case AF_INET6: {
                             // Format IPv4 and IPv6 addresses to string if possible
                             const auto addr = get_address_string_by_address(value.Address.lpSockaddr);
-                            if (!addr) {
+                            if(!addr) {
                                 break;
                             }
 
@@ -117,7 +120,8 @@ namespace kstd::platform {
                     }
 
                     // Construct interface address
-                    return InterfaceAddress {address, static_cast<AddressFamily>(value.Address.lpSockaddr->sa_family), current_address_type};
+                    return InterfaceAddress {address, static_cast<AddressFamily>(value.Address.lpSockaddr->sa_family),
+                                             current_address_type};
                 };
 
                 // Enumerate Unicast addresses and insert address families
@@ -144,7 +148,8 @@ namespace kstd::platform {
                 speed = {};
             }
 
-            interfaces.insert(NetworkInterface {name, description, std::move(if_addrs), speed, static_cast<InterfaceType>(row.dwType)});
+            interfaces.insert(NetworkInterface {name, description, std::move(if_addrs), speed,
+                                                static_cast<InterfaceType>(row.dwType)});
         }
 
         // Free information and return interfaces
