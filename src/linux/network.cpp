@@ -34,9 +34,21 @@ namespace kstd::platform {
     using namespace std::string_literals;
     using InterfaceAddresses = struct ifaddrs;
 
+    auto is_multicast(usize addr_family, std::string address) -> bool {
+        switch (addr_family) {
+            case AF_INET: return (ntohl(inet_addr(address.data())) & 0xF0000000) == 0xE0000000;
+            case AF_INET6: {
+                struct sockaddr_in6 sockaddr6;
+                inet_pton(AF_INET6, address.data(), &(sockaddr6.sin6_addr));
+                return (sockaddr6.sin6_addr.s6_addr[0] == 0xff);
+            }
+            default: return false;
+        }
+    }
+
     auto enumerate_interfaces() noexcept -> Result<std::vector<NetworkInterface>> {
         InterfaceAddresses* addresses = nullptr;
-        if(getifaddrs(&addresses) < 0) {
+        if(::getifaddrs(&addresses) < 0) {
             return Error {get_last_error()};
         }
 
@@ -61,7 +73,7 @@ namespace kstd::platform {
                 switch(addr->ifa_addr->sa_family) {
                     case AF_INET: {
                         std::array<char, INET_ADDRSTRLEN> data {};
-                        if(inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(addr->ifa_addr)->sin_addr, data.data(),
+                        if(::inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(addr->ifa_addr)->sin_addr, data.data(),
                                      sizeof(data)) == nullptr) {
                             break;
                         }
@@ -70,7 +82,7 @@ namespace kstd::platform {
                     }
                     case AF_INET6: {
                         std::array<char, INET6_ADDRSTRLEN> data {};
-                        if(inet_ntop(AF_INET6, &reinterpret_cast<sockaddr_in6*>(addr->ifa_addr)->sin6_addr, data.data(),
+                        if(::inet_ntop(AF_INET6, &reinterpret_cast<sockaddr_in6*>(addr->ifa_addr)->sin6_addr, data.data(),
                                      data.size()) == nullptr) {
                             break;
                         }
@@ -80,11 +92,20 @@ namespace kstd::platform {
                     default: break;
                 }
 
+                auto routing_scheme = RoutingScheme::UNKNOWN;
+                if (address.has_value()) {
+                    if (is_multicast(addr_family, *address)) {
+                        routing_scheme = RoutingScheme::MULTICAST;
+                    } else {
+                        routing_scheme = RoutingScheme::UNICAST;
+                    }
+                }
+
                 // Add address to original interface if there is one. If not, add the address to the addrs set
                 if (original_interface.has_value()) {
-                    original_interface->addresses.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), RoutingScheme::UNICAST});
+                    original_interface->addresses.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
                 } else {
-                    addrs.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), RoutingScheme::UNICAST});
+                    addrs.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
                 }
             }
 

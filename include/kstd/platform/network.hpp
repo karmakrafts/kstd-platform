@@ -32,9 +32,9 @@
 #else
 #include <ifaddrs.h>
 #include <netdb.h>
-#include <linux/if_link.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <net/if.h>
 #endif
 
 namespace kstd::platform {
@@ -50,7 +50,8 @@ namespace kstd::platform {
     enum class RoutingScheme : u8 {
         UNICAST,
         MULTICAST,
-        ANYCAST
+        ANYCAST,
+        UNKNOWN
     };
 
     struct InterfaceAddress final {
