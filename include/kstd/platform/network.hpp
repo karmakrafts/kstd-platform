@@ -32,6 +32,7 @@
 #else
 #include <ifaddrs.h>
 #include <netdb.h>
+#include <net/if_arp.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -54,6 +55,26 @@ namespace kstd::platform {
         UNKNOWN
     };
 
+#ifdef PLATFORM_WINDOWS
+    enum class InterfaceType : u16 {
+        LOOPBACK = IF_TYPE_SOFTWARE_LOOPBACK,
+        ETHERNET = IF_TYPE_ETHERNET_CSMACD,
+        WIRELESS = IF_TYPE_IEEE80211,
+        PPP = IF_TYPE_PPP,
+        ATM = IF_TYPE_ATM,
+        TUNNEL = IF_TYPE_TUNNEL
+    };
+#else
+    enum class InterfaceType : u16 {
+        LOOPBACK = 772,
+        ETHERNET = 1,
+        WIRELESS = 65535,
+        PPP = 512,
+        ATM = 19,
+        TUNNEL = 768
+    };
+#endif
+
     struct InterfaceAddress final {
         Option<std::string> address;
         AddressFamily family;
@@ -67,6 +88,18 @@ namespace kstd::platform {
             return !(*this == other);
         }
     };
+
+    [[nodiscard]] inline auto get_interface_type_name(const InterfaceType type) noexcept -> std::string {
+        switch(type) {
+            case InterfaceType::LOOPBACK: return "Loopback";
+            case InterfaceType::ETHERNET: return "Ethernet";
+            case InterfaceType::WIRELESS: return "Wireless";
+            case InterfaceType::TUNNEL: return "Tunnel";
+            case InterfaceType::PPP: return "PPP";
+            case InterfaceType::ATM: return "ATM";
+            default: return "Unknown";
+        }
+    }
 
     [[nodiscard]] inline auto get_address_family_name(const AddressFamily family) noexcept -> std::string {
         switch(family) {
@@ -97,6 +130,7 @@ namespace kstd::platform {
         std::string description;
         std::unordered_set<InterfaceAddress> addresses;
         Option<kstd::usize> link_speed;
+        InterfaceType type;
 
         [[nodiscard]] inline auto has_addresses_by_family(const AddressFamily family) const noexcept -> bool {
             // clang-format off

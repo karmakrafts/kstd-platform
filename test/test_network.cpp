@@ -33,7 +33,8 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
         if(interface.link_speed.has_value()) {
             std::cout << " (" << *interface.link_speed << ')';
         }
-        std::cout << '\n';
+
+        std::cout << " (" << kstd::platform::get_interface_type_name(interface.type) << ")\n";
         for(const auto& address : interface.addresses) {
             std::cout << " - ";
             if (address.address.has_value()) {

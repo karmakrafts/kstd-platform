@@ -134,8 +134,24 @@ namespace kstd::platform {
                     }
                 }
 
+                // Get interface type
+                auto interface_type = InterfaceType::ATM;
+                if (std::filesystem::exists(if_path / "ieee80211")) {
+                    interface_type = InterfaceType::WIRELESS;
+                }
+
+                if (interface_type == InterfaceType::ATM) {
+                    const auto type_path = if_path / "type";
+                    if(std::filesystem::exists(type_path)) {
+                        std::ifstream stream {type_path};
+                        std::string type {};
+                        stream >> type;
+                        interface_type = static_cast<InterfaceType>(std::stoi(type));
+                    }
+                }
+
                 // Push new interface
-                interfaces.push_back(NetworkInterface {if_path, description, std::move(addrs), interface_speed});
+                interfaces.push_back(NetworkInterface {if_path, description, std::move(addrs), interface_speed, interface_type});
             }
         }
 

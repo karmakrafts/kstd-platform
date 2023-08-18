@@ -144,7 +144,7 @@ namespace kstd::platform {
                 speed = {};
             }
 
-            interfaces.push_back(NetworkInterface {name, description, std::move(if_addrs), speed});
+            interfaces.push_back(NetworkInterface {name, description, std::move(if_addrs), speed, static_cast<InterfaceType>(row.dwType)});
         }
 
         // Free information and return interfaces
