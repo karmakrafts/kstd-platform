@@ -149,7 +149,7 @@ namespace kstd::platform {
             }
 
             interfaces.insert(NetworkInterface {name, description, std::move(if_addrs), speed,
-                                                static_cast<InterfaceType>(row.dwType)});
+                                                static_cast<InterfaceType>(row.dwType), row.dwMtu});
         }
 
         // Free information and return interfaces

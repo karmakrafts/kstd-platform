@@ -56,25 +56,24 @@ namespace kstd::platform {
         UNKNOWN
     };
 
-#ifdef PLATFORM_WINDOWS
     enum class InterfaceType : u16 {
+#ifdef PLATFORM_WINDOWS
         LOOPBACK = IF_TYPE_SOFTWARE_LOOPBACK,
         ETHERNET = IF_TYPE_ETHERNET_CSMACD,
         WIRELESS = IF_TYPE_IEEE80211,
         PPP = IF_TYPE_PPP,
         ATM = IF_TYPE_ATM,
-        TUNNEL = IF_TYPE_TUNNEL
-    };
+        TUNNEL = IF_TYPE_TUNNEL,
 #else
-    enum class InterfaceType : u16 {
         LOOPBACK = 772,
         ETHERNET = 1,
         WIRELESS = 65535,
         PPP = 512,
         ATM = 19,
-        TUNNEL = 768
-    };
+        TUNNEL = 768,
 #endif
+        UNKNOWN = 65535
+    };
 
     class InterfaceAddress final {
         Option<std::string> _address;
@@ -158,18 +157,20 @@ namespace kstd::platform {
         std::unordered_set<InterfaceAddress> _addresses;
         Option<usize> _link_speed;
         InterfaceType _type;
+        usize _max_transfer;
 
         public:
         friend struct std::hash<NetworkInterface>;
 
         inline NetworkInterface(std::string name, std::string description,
                                 std::unordered_set<InterfaceAddress> addresses, Option<usize> link_speed,
-                                InterfaceType type) noexcept :
+                                InterfaceType type, usize max_transfer) noexcept :
                 _name {std::move(name)},
                 _description {std::move(description)},
                 _addresses {std::move(addresses)},
                 _link_speed {link_speed},
-                _type {type} {
+                _type {type},
+                _max_transfer {max_transfer} {
         }
 
         KSTD_DEFAULT_MOVE_COPY(NetworkInterface, NetworkInterface, inline)
@@ -222,6 +223,10 @@ namespace kstd::platform {
 
         [[nodiscard]] auto get_type() const noexcept -> InterfaceType {
             return _type;
+        }
+
+        [[nodiscard]] auto get_max_transfer() const noexcept -> usize {
+            return _max_transfer;
         }
     };
 

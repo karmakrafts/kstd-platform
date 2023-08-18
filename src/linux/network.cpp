@@ -30,9 +30,34 @@
 #include <kstd/safe_alloc.hpp>
 #include <unistd.h>
 
+#define INT_FILE_CAST_FUNCTOR(t)                                                                                       \
+    [](auto value) noexcept -> auto {                                                                                  \
+        return static_cast<t>(std::stoi(value));                                                                       \
+    }
+
+#define INT_FILE_FUNCTOR(t)                                                                                            \
+    [](auto value) noexcept -> auto {                                                                                  \
+        return std::stoi(value);                                                                                       \
+    }
+
 namespace kstd::platform {
     using namespace std::string_literals;
     using InterfaceAddresses = struct ifaddrs;
+
+    auto read_file(const std::filesystem::path& path) -> Option<std::string> {
+        if(!std::filesystem::exists(path)) {
+            return {};
+        }
+
+        std::ifstream stream {path};
+        std::string content {};
+        stream >> content;
+        if(content.empty()) {
+            return {};
+        }
+
+        return content;
+    }
 
     auto is_multicast(usize addr_family, std::string address) -> bool {
         switch(addr_family) {
@@ -125,37 +150,23 @@ namespace kstd::platform {
                 std::filesystem::current_path("/sys/class/net");
                 const auto if_path = std::filesystem::canonical(std::string {buffer.data()});
 
-                // Get interface speed
-                const auto speed_path = if_path / "speed";
-                Option<usize> interface_speed {};
-                if(std::filesystem::exists(speed_path)) {
-                    std::ifstream stream {speed_path};
-                    std::string speed {};
-                    stream >> speed;
-                    if(!speed.empty()) {
-                        interface_speed = std::stoi(speed);
-                    }
-                }
+                // clang-format off
+                // Interface Speed
+                const auto speed = read_file(if_path / "speed").map(INT_FILE_CAST_FUNCTOR(usize));
 
                 // Get interface type
-                auto interface_type = InterfaceType::ATM;
+                auto type = read_file(if_path / "type").map(INT_FILE_CAST_FUNCTOR(InterfaceType))
+                    .get_or(InterfaceType::UNKNOWN);
                 if(std::filesystem::exists(if_path / "ieee80211")) {
-                    interface_type = InterfaceType::WIRELESS;
+                    type = InterfaceType::WIRELESS;
                 }
 
-                if(interface_type == InterfaceType::ATM) {
-                    const auto type_path = if_path / "type";
-                    if(std::filesystem::exists(type_path)) {
-                        std::ifstream stream {type_path};
-                        std::string type {};
-                        stream >> type;
-                        interface_type = static_cast<InterfaceType>(std::stoi(type));
-                    }
-                }
+                // Get MTU
+                const usize mtu = read_file(if_path / "mtu").map(INT_FILE_CAST_FUNCTOR(usize)).get_or(0);
+                // clang-format on
 
                 // Push new interface
-                interfaces.push_back(
-                        NetworkInterface {if_path, description, std::move(addrs), interface_speed, interface_type});
+                interfaces.push_back(NetworkInterface {if_path, description, std::move(addrs), speed, type, mtu});
             }
         }
 
