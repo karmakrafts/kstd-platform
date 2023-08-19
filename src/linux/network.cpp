@@ -170,7 +170,7 @@ namespace kstd::platform {
         }
 
         freeifaddrs(addresses);
-        return std::unordered_set {interfaces.begin(), interfaces.end()};
+        return std::unordered_set<NetworkInterface> {interfaces.begin(), interfaces.end()};
     }
 }// namespace kstd::platform
 
