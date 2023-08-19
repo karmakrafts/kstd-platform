@@ -11,10 +11,12 @@ cmx_include_scripts()
 cmx_add_library(kstd-platform SHARED "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_include_directories(kstd-platform PUBLIC "${CMAKE_SOURCE_DIR}/include")
 cmx_include_kstd_core(kstd-platform PUBLIC)
+cmx_include_kstd_streams(kstd-platform PUBLIC)
 
 cmx_add_library(kstd-platform-static STATIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_include_directories(kstd-platform-static PUBLIC "${CMAKE_SOURCE_DIR}/include")
 cmx_include_kstd_core(kstd-platform-static PUBLIC)
+cmx_include_kstd_streams(kstd-platform-static PUBLIC)
 
 if (CMX_PLATFORM_UNIX)
     target_link_libraries(kstd-platform PUBLIC -lresolv)

@@ -19,7 +19,6 @@
 
 #include "kstd/platform/dns.hpp"
 #include <gtest/gtest.h>
-#include <iostream>
 
 TEST(kstd_platform_Resolver, test_resolve_local_addresses) {
     auto resolver = kstd::platform::Resolver {};
