@@ -34,13 +34,14 @@ namespace kstd::platform {
         std::array<wchar_t, INET6_ADDRSTRLEN> address_buffer {};
         switch(address->sa_family) {
             case AF_INET: {
-                ::InetNtopW(AF_INET, &reinterpret_cast<sockaddr_in*>(address)->sin_addr, address_buffer.data(),
-                            length);// NOLINT
+                ::InetNtopW(AF_INET, &reinterpret_cast<sockaddr_in*>(address)->sin_addr, address_buffer.data(),// NOLINT
+                            length);                                                                           // NOLINT
                 break;
             }
             case AF_INET6: {
-                ::InetNtopW(AF_INET6, &reinterpret_cast<sockaddr_in6*>(address)->sin6_addr, address_buffer.data(),
-                            length);// NOLINT
+                ::InetNtopW(AF_INET6, &reinterpret_cast<sockaddr_in6*>(address)->sin6_addr,// NOLINT
+                            address_buffer.data(),
+                            length);
                 break;
             }
             default: return {};
@@ -51,7 +52,8 @@ namespace kstd::platform {
     auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>> {
         using namespace std::string_literals;
 
-        constexpr auto adapter_addrs_flags = GAA_FLAG_INCLUDE_GATEWAYS | GAA_FLAG_INCLUDE_ALL_INTERFACES | GAA_FLAG_INCLUDE_PREFIX;
+        constexpr auto adapter_addrs_flags =
+                GAA_FLAG_INCLUDE_GATEWAYS | GAA_FLAG_INCLUDE_ALL_INTERFACES | GAA_FLAG_INCLUDE_PREFIX;
 
         // Determine size of adapter addresses
         usize adapter_addresses_size = 0;
@@ -145,10 +147,18 @@ namespace kstd::platform {
             }
 
             // Add MAC address to addresses
-            if_addrs.insert(InterfaceAddress {fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}", row.bPhysAddr[0],
-                                                          row.bPhysAddr[1], row.bPhysAddr[2], row.bPhysAddr[3],
-                                                          row.bPhysAddr[4], row.bPhysAddr[5]),
-                                              AddressFamily::MAC, RoutingScheme::UNKNOWN});
+            auto const phys_addr_len = row.dwPhysAddrLen;
+            std::string mac_address = phys_addr_len > 0 ? "" : "00:00:00:00:00:00";
+            for(int i = 0; i < phys_addr_len; i++) {
+                if(i < phys_addr_len - 1) {
+                    mac_address.append(fmt::format("{:02X}:", row.bPhysAddr[i]));// NOLINT
+                }
+                else {
+                    mac_address.append(fmt::format("{:02X}", row.bPhysAddr[i]));// NOLINT
+                }
+            }
+
+            if_addrs.insert(InterfaceAddress {mac_address, AddressFamily::MAC, RoutingScheme::UNKNOWN});
 
             // Push interface (Speed from bits to megabytes)
             Option<usize> speed = row.dwSpeed / 1024 / 1024;

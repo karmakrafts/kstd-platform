@@ -4,7 +4,7 @@ project(kstd-platform LANGUAGES C CXX)
 option(KSTD_PLATFORM_BUILD_TESTS "Build unit tests for kstd-platform" OFF)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake;")
-include(cmx)
+include(cmx-bootstrap)
 cmx_include_scripts()
 
 # Library
