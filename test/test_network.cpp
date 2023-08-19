@@ -31,7 +31,7 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
     for(const auto& interface : *result) {
         std::cout << interface.get_description() << '\n';
         std::cout << " - Path: " << interface.get_name() << '\n';
-        std::cout << " - MTU: " << interface.get_max_transfer() << '\n';
+        std::cout << " - MTU: " << interface.get_mtu() << '\n';
         std::cout << " - MAC Address: " << interface.get_mac_address() << '\n';
         std::cout << " - Type: " << kstd::platform::get_interface_type_name(interface.get_type()) << '\n';
         if(interface.get_link_speed().has_value()) {

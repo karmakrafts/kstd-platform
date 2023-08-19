@@ -22,13 +22,9 @@
 #include "kstd/platform/network.hpp"
 #include "kstd/platform/file_mapping.hpp"
 #include "kstd/platform/platform.hpp"
-#include <array>
 #include <filesystem>
 #include <fstream>
-#include <ifaddrs.h>
 #include <kstd/safe_alloc.hpp>
-#include <linux/if_packet.h>
-#include <unistd.h>
 
 #define INT_FILE_CAST_FUNCTOR(t)                                                                                       \
     [](auto value) noexcept -> auto {                                                                                  \
