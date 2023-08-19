@@ -40,8 +40,7 @@ namespace kstd::platform {
             }
             case AF_INET6: {
                 ::InetNtopW(AF_INET6, &reinterpret_cast<sockaddr_in6*>(address)->sin6_addr,// NOLINT
-                            address_buffer.data(),
-                            length);
+                            address_buffer.data(), length);
                 break;
             }
             default: return {};
@@ -90,8 +89,7 @@ namespace kstd::platform {
         std::unordered_set<NetworkInterface> interfaces {};
         for(const auto row : Slice {static_cast<PMIB_IFROW>(table->table), table->dwNumEntries * sizeof(MIB_IFROW)}) {
             // Generate name and description
-            const auto description =
-                    std::string {reinterpret_cast<const char*>(row.bDescr), row.dwDescrLen - 1};// NOLINT
+            const auto desc = std::string {reinterpret_cast<const char*>(row.bDescr), row.dwDescrLen - 1};// NOLINT
             const auto name = utils::to_mbs(static_cast<const WCHAR*>(row.wszName));
 
             // Enumerate over adapter addresses information and save the correct data
@@ -158,7 +156,7 @@ namespace kstd::platform {
                 }
             }
 
-            if_addrs.insert(InterfaceAddress {mac_address, AddressFamily::MAC, RoutingScheme::UNKNOWN});
+            if_addrs.insert({mac_address, AddressFamily::MAC, RoutingScheme::UNKNOWN});
 
             // Push interface (Speed from bits to megabytes)
             Option<usize> speed = row.dwSpeed / 1024 / 1024;
@@ -166,8 +164,9 @@ namespace kstd::platform {
                 speed = {};
             }
 
-            interfaces.insert(NetworkInterface {name, description, std::move(if_addrs), speed,
-                                                static_cast<InterfaceType>(row.dwType), row.dwMtu});
+            // clang-format off
+            interfaces.insert({name, desc, std::move(if_addrs), speed, static_cast<InterfaceType>(row.dwType), row.dwMtu});
+            // clang-format on
         }
 
         // Free information and return interfaces

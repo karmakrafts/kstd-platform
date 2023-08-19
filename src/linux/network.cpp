@@ -33,7 +33,7 @@
 
 namespace kstd::platform {
     using namespace std::string_literals;
-    using InterfaceAddresses = struct ifaddrs;
+    using NativeInterfaceAddress = struct ifaddrs;
 
     auto read_file(const std::filesystem::path& path) -> Option<std::string> {
         if(!std::filesystem::exists(path)) {
@@ -63,7 +63,7 @@ namespace kstd::platform {
     }
 
     auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>> {
-        InterfaceAddresses* addresses = nullptr;
+        NativeInterfaceAddress* addresses = nullptr;
         if(::getifaddrs(&addresses) < 0) {
             return Error {get_last_error()};
         }
@@ -71,10 +71,10 @@ namespace kstd::platform {
         std::vector<NetworkInterface> interfaces {};
         for(const auto* addr = addresses; addr != nullptr; addr = addr->ifa_next) {
             // Get description
-            const auto description = std::string {addr->ifa_name};
+            const auto description {addr->ifa_name};
 
             // clang-format off
-            Option<NetworkInterface&> original_interface = streams::stream(interfaces).find_first([&](auto& interface) {
+            auto original_interface = streams::stream(interfaces).find_first([&](auto& interface) {
                 return interface.get_description() == description;
             });
             // clang-format on
@@ -93,7 +93,7 @@ namespace kstd::platform {
                                        sizeof(data)) == nullptr) {
                             break;
                         }
-                        address = std::string {data.cbegin(), data.cend()};
+                        address = {data.cbegin(), data.cend()};
                         break;
                     }
                     case AF_INET6: {
@@ -102,7 +102,7 @@ namespace kstd::platform {
                                        data.data(), data.size()) == nullptr) {
                             break;
                         }
-                        address = std::string {data.cbegin(), data.cend()};
+                        address = {data.cbegin(), data.cend()};
                         break;
                     }
                     case AF_PACKET: {

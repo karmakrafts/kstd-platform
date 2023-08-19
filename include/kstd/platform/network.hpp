@@ -90,9 +90,7 @@ namespace kstd::platform {
          *
          * @param address        The literal address
          * @param family         The address family
-         * @param routing_scheme The routing scheme
-         * @author               Cedric Hammes
-         * @since                18/08/2023
+         * @param routing_scheme The routing schem
          */
         inline InterfaceAddress(Option<std::string> address, AddressFamily family,
                                 RoutingScheme routing_scheme) noexcept :
@@ -108,8 +106,6 @@ namespace kstd::platform {
          * This function returns the literal address of the address structure.
          *
          * @return The literal address as optional string
-         * @author Cedric Hammes
-         * @since  18/08/2023
          */
         [[nodiscard]] inline auto get_address() const noexcept -> const Option<std::string>& {
             return _address;
@@ -119,8 +115,6 @@ namespace kstd::platform {
          * This function returns the address family of this address structure.
          *
          * @return The address family
-         * @author Cedric Hammes
-         * @since  18/08/2023
          */
         [[nodiscard]] inline auto get_family() const noexcept -> AddressFamily {
             return _family;
@@ -130,9 +124,7 @@ namespace kstd::platform {
          * This function returns the routing schema of this address structure. This can be Unicast, Multicast oder
          * Anycast.
          *
-         * @return The routing schema of the address.
-         * @author Cedric Hammes
-         * @since  18/08/2023
+         * @return The routing schema of the address
          */
         [[nodiscard]] inline auto get_routing_scheme() const noexcept -> RoutingScheme {
             return _routing_scheme;
@@ -153,8 +145,6 @@ namespace kstd::platform {
      *
      * @param type The specified type of some interface
      * @return     The literal name of the interface type
-     * @author     Cedric Hammes
-     * @since      18/08/2023
      */
     [[nodiscard]] inline auto get_interface_type_name(const InterfaceType type) noexcept -> std::string {
         switch(type) {
@@ -174,8 +164,6 @@ namespace kstd::platform {
      *
      * @param family The specified address family
      * @return       The literal name of the address family
-     * @author       Cedric Hammes
-     * @since        17/08/2023
      */
     [[nodiscard]] inline auto get_address_family_name(const AddressFamily family) noexcept -> std::string {
         switch(family) {
@@ -249,13 +237,13 @@ namespace kstd::platform {
          */
         inline NetworkInterface(std::string name, std::string description,
                                 std::unordered_set<InterfaceAddress> addresses, Option<usize> link_speed,
-                                InterfaceType type, usize _mtu) noexcept :
+                                InterfaceType type, usize mtu) noexcept :
                 _name {std::move(name)},
                 _description {std::move(description)},
                 _addresses {std::move(addresses)},
                 _link_speed {link_speed},
                 _type {type},
-                _mtu {_mtu} {
+                _mtu {mtu} {
         }
 
         KSTD_DEFAULT_MOVE_COPY(NetworkInterface, NetworkInterface, inline)
@@ -272,8 +260,6 @@ namespace kstd::platform {
          * returns the literal address as string reference.
          *
          * @return The MAC address of the adapter for this interface.
-         * @author Cedric Hammes
-         * @since  18/08/2023
          */
         [[nodiscard]] inline auto get_mac_address() const noexcept -> const std::string& {
             // clang-format off
@@ -289,13 +275,11 @@ namespace kstd::platform {
          *
          * @param family The address family for that should run this lookup
          * @return       Is there one or more addresses with the specified family
-         * @author       Cedric Hammes
-         * @since        17/08/2023
          */
         [[nodiscard]] [[maybe_unused]] inline auto has_addresses_by_family(const AddressFamily family) const noexcept
                 -> bool {
             // clang-format off
-            return streams::stream(_addresses).map(KSTD_FIELD_FUNCTOR(_family)).find_first([&](auto value) {
+            return streams::stream(_addresses).map(KSTD_FIELD_FUNCTOR(_family)).find_first([&](auto& value) {
                 return value == family;
             }).has_value();
             // clang-format on
@@ -307,13 +291,11 @@ namespace kstd::platform {
          *
          * @param scheme The routing scheme for that should run this lookup
          * @return       Is there one or more addresses with the specified routing scheme
-         * @author       Cedric Hammes
-         * @since        17/08/2023
          */
         [[nodiscard]] [[maybe_unused]] inline auto
         has_addresses_with_routing_scheme(const RoutingScheme scheme) const noexcept -> bool {
             // clang-format off
-            return streams::stream(_addresses).map(KSTD_FIELD_FUNCTOR(_routing_scheme)).find_first([&](auto value) {
+            return streams::stream(_addresses).map(KSTD_FIELD_FUNCTOR(_routing_scheme)).find_first([&](auto& value) {
                 return value == scheme;
             }).has_value();
             // clang-format on
@@ -324,8 +306,6 @@ namespace kstd::platform {
          * interface/adapter.
          *
          * @return The name/path of the interface/adapter
-         * @author Cedric Hammes
-         * @since  18/08/2023
          */
         [[nodiscard]] auto get_name() const noexcept -> const std::string& {
             return _name;
@@ -336,8 +316,6 @@ namespace kstd::platform {
          * interface/adapter.
          *
          * @return The description/friendly name of the interface/adapter
-         * @author Cedric Hammes
-         * @since  18/08/2023
          */
         [[nodiscard]] auto get_description() const noexcept -> const std::string& {
             return _description;
@@ -348,8 +326,6 @@ namespace kstd::platform {
          * contains the address family, routing scheme and the address itself.
          *
          * @return A reference to the address set
-         * @author Cedric Hammes
-         * @since  18/08/2023
          */
         [[nodiscard]] auto get_addresses() const noexcept -> const std::unordered_set<InterfaceAddress>& {
             return _addresses;
@@ -360,10 +336,8 @@ namespace kstd::platform {
          * there can be some interfaces without a link speed.
          *
          * @return A option for the link speed
-         * @author Cedric Hammes
-         * @since  18/08/2023
          */
-        [[nodiscard]] auto get_link_speed() const noexcept -> Option<usize> {
+        [[nodiscard]] auto get_link_speed() const noexcept -> const Option<usize>& {
             return _link_speed;
         }
 
@@ -371,8 +345,6 @@ namespace kstd::platform {
          * This function returns the type of the interface.
          *
          * @return The interface type
-         * @author Cedric Hammes
-         * @since  18/08/2023
          */
         [[nodiscard]] auto get_type() const noexcept -> InterfaceType {
             return _type;
@@ -383,8 +355,6 @@ namespace kstd::platform {
          * default MTU is mostly 1500 bytes.
          *
          * @return The MTU of the interface
-         * @author Cedric Hammes
-         * @since  18/08/2023
          */
         [[nodiscard]] auto get_mtu() const noexcept -> usize {
             return _mtu;
@@ -412,8 +382,6 @@ namespace kstd::platform {
      * - System/API errors while calling some API functions
      *
      * @return A collection of all interfaces or an error
-     * @author Cedric Hammes
-     * @since  17/08/2023
      */
     [[nodiscard]] auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>>;
 }// namespace kstd::platform
