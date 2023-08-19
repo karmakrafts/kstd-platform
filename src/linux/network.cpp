@@ -93,7 +93,7 @@ namespace kstd::platform {
                                        sizeof(data)) == nullptr) {
                             break;
                         }
-                        address = {data.cbegin(), data.cend()};
+                        address = std::string {data.cbegin(), data.cend()};
                         break;
                     }
                     case AF_INET6: {
@@ -102,7 +102,7 @@ namespace kstd::platform {
                                        data.data(), data.size()) == nullptr) {
                             break;
                         }
-                        address = {data.cbegin(), data.cend()};
+                        address = std::string {data.cbegin(), data.cend()};
                         break;
                     }
                     case AF_PACKET: {
