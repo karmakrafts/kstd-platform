@@ -90,7 +90,7 @@ namespace kstd::platform {
          *
          * @param address        The literal address
          * @param family         The address family
-         * @param routing_scheme The routing schem
+         * @param routing_scheme The routing scheme
          */
         inline InterfaceAddress(Option<std::string> address, AddressFamily family,
                                 RoutingScheme routing_scheme) noexcept :
