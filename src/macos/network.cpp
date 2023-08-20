@@ -17,7 +17,7 @@
  * @since 17/08/2023
  */
 
-#ifdef PLATFORM_UNIX
+#ifdef PLATFORM_APPLE
 
 #include "kstd/platform/network.hpp"
 #include "kstd/platform/platform.hpp"
