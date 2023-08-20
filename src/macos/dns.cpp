@@ -49,7 +49,7 @@ namespace kstd::platform {
 
         // Generate custom nameserver list if needed
         if(_dns_addresses.size() > 0) {
-            _res.nscount = _dns_addresses.size();
+            _res.nscount = static_cast<int>(_dns_addresses.size());
             for(int i = 0; i < _res.nscount; ++i) {
                 if(is_ipv4_address(_dns_addresses[i])) {
                     _res.nsaddr_list[i].sin_family = AF_INET;
@@ -67,7 +67,7 @@ namespace kstd::platform {
         }
 
         // Send DNS request
-        std::array<u_char, 4096> response_buffer {'\0'};
+        std::array<u_char, 512> response_buffer {'\0'};
         kstd::isize response_length = ::res_query(address.c_str(), __ns_class::ns_c_in, static_cast<int>(type),
                                                   response_buffer.data(), sizeof(response_buffer));
 

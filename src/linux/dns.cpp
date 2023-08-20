@@ -24,17 +24,14 @@
 namespace kstd::platform {
     Resolver::Resolver(const std::vector<std::string> dns_addresses) :
             _dns_addresses {dns_addresses} {
-        if(dns_addresses.size() == 0) {
+        if(dns_addresses.empty()) {
             throw std::runtime_error("Unable to initialize list of DNS servers: No DNS server specified");
         }
     }
 
-    Resolver::Resolver() :
-            _dns_addresses {} {
-    }
+    Resolver::Resolver() = default;
 
-    Resolver::~Resolver() {
-    }
+    Resolver::~Resolver() = default;
 
     auto Resolver::resolve(const std::string& address, const RecordType type) noexcept -> kstd::Result<std::string> {
         if(address == "localhost") {
@@ -48,8 +45,8 @@ namespace kstd::platform {
         res_init();
 
         // Generate custom nameserver list if needed
-        if(_dns_addresses.size() > 0) {
-            _res.nscount = _dns_addresses.size();
+        if(!_dns_addresses.empty()) {
+            _res.nscount = static_cast<int>(_dns_addresses.size());
             for(int i = 0; i < _res.nscount; ++i) {
                 if(is_ipv4_address(_dns_addresses[i])) {
                     _res.nsaddr_list[i].sin_family = AF_INET;
@@ -67,7 +64,7 @@ namespace kstd::platform {
         }
 
         // Send DNS request
-        std::array<u_char, 4096> response_buffer {'\0'};
+        std::array<u_char, 512> response_buffer {'\0'};
         kstd::isize response_length = ::res_query(address.c_str(), C_IN, static_cast<int>(type), response_buffer.data(),
                                                   sizeof(response_buffer));
 

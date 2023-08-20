@@ -20,7 +20,6 @@
 #ifdef PLATFORM_LINUX
 
 #include "kstd/platform/network.hpp"
-#include "kstd/platform/file_mapping.hpp"
 #include "kstd/platform/platform.hpp"
 #include <filesystem>
 #include <fstream>
@@ -54,7 +53,7 @@ namespace kstd::platform {
         switch(addr_family) {
             case AF_INET: return (ntohl(inet_addr(address.data())) & 0xF0000000) == 0xE0000000;
             case AF_INET6: {
-                struct sockaddr_in6 sockaddr6;
+                sockaddr_in6 sockaddr6 {};
                 inet_pton(AF_INET6, address.data(), &(sockaddr6.sin6_addr));
                 return (sockaddr6.sin6_addr.s6_addr[0] == 0xff);
             }
@@ -62,7 +61,7 @@ namespace kstd::platform {
         }
     }
 
-    auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>> {
+    auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>> {// NOLINT
         NativeInterfaceAddress* addresses = nullptr;
         if(::getifaddrs(&addresses) < 0) {
             return Error {get_last_error()};
@@ -71,7 +70,7 @@ namespace kstd::platform {
         std::vector<NetworkInterface> interfaces {};
         for(const auto* addr = addresses; addr != nullptr; addr = addr->ifa_next) {
             // Get description
-            const auto description {addr->ifa_name};
+            const auto* description {addr->ifa_name};
 
             // clang-format off
             auto original_interface = streams::stream(interfaces).find_first([&](auto& interface) {
@@ -89,7 +88,7 @@ namespace kstd::platform {
                 switch(addr->ifa_addr->sa_family) {
                     case AF_INET: {
                         std::array<char, INET_ADDRSTRLEN> data {};
-                        if(::inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(addr->ifa_addr)->sin_addr, data.data(),
+                        if(::inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(addr->ifa_addr)->sin_addr, data.data(),// NOLINT
                                        sizeof(data)) == nullptr) {
                             break;
                         }
@@ -98,7 +97,7 @@ namespace kstd::platform {
                     }
                     case AF_INET6: {
                         std::array<char, INET6_ADDRSTRLEN> data {};
-                        if(::inet_ntop(AF_INET6, &reinterpret_cast<sockaddr_in6*>(addr->ifa_addr)->sin6_addr,
+                        if(::inet_ntop(AF_INET6, &reinterpret_cast<sockaddr_in6*>(addr->ifa_addr)->sin6_addr,// NOLINT
                                        data.data(), data.size()) == nullptr) {
                             break;
                         }
@@ -106,7 +105,7 @@ namespace kstd::platform {
                         break;
                     }
                     case AF_PACKET: {
-                        struct sockaddr_ll* mac = (struct sockaddr_ll*) addr->ifa_addr;
+                        const auto* mac = reinterpret_cast<sockaddr_ll*>(addr->ifa_addr);// NOLINT
                         address = fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}", mac->sll_addr[0],
                                               mac->sll_addr[1], mac->sll_addr[2], mac->sll_addr[3], mac->sll_addr[4],
                                               mac->sll_addr[5]);
@@ -165,7 +164,7 @@ namespace kstd::platform {
                 // clang-format on
 
                 // Push new interface
-                interfaces.push_back(NetworkInterface {if_path, description, std::move(addrs), speed, type, mtu});
+                interfaces.emplace_back(if_path, description, std::move(addrs), speed, type, mtu);
             }
         }
 
