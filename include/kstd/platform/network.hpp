@@ -32,6 +32,7 @@
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <linux/if_packet.h>
+#include <net/if.h>
 #endif
 
 namespace kstd::platform {

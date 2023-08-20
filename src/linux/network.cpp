@@ -55,10 +55,28 @@ namespace kstd::platform {
             case AF_INET6: {
                 sockaddr_in6 sockaddr6 {};
                 inet_pton(AF_INET6, address.data(), &(sockaddr6.sin6_addr));
-                return (sockaddr6.sin6_addr.s6_addr[0] == 0xff);
+                return (sockaddr6.sin6_addr.__in6_u.__u6_addr8[0] == 0xff);// NOLINT
             }
             default: return false;
         }
+    }
+
+    inline auto open_socket() -> Result<usize> {
+        using namespace std::string_literals;
+
+        static const std::array<usize, 4> families = {
+                AF_INET, AF_IPX, AF_AX25, AF_APPLETALK
+        };
+
+        isize socket_descriptor = -1;
+        for (usize family : families) {
+            socket_descriptor = socket(static_cast<int>(family), SOCK_DGRAM, 0);
+            if (socket_descriptor >= 0) {
+                return socket_descriptor;
+            }
+        }
+
+        return Error { "Unable to open socket"s };
     }
 
     auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>> {// NOLINT
@@ -67,6 +85,13 @@ namespace kstd::platform {
             return Error {get_last_error()};
         }
 
+        // Open socket
+        const auto socket_descriptor = open_socket();
+        if (!socket_descriptor) {
+            return Error { socket_descriptor.get_error() };
+        }
+
+        // Enumerate interfaces
         std::vector<NetworkInterface> interfaces {};
         for(const auto* addr = addresses; addr != nullptr; addr = addr->ifa_next) {
             // Get description
@@ -112,6 +137,7 @@ namespace kstd::platform {
                     }
                     default: break;
                 }
+                address->resize(libc::get_string_length(address->c_str()));
 
                 // TODO: Look into the routing table and check if the address is an Anycast address
                 // Check if routing scheme is Multicast or Unicast
@@ -155,9 +181,14 @@ namespace kstd::platform {
                 // Get type
                 auto type = read_file(if_path / "type").map(INT_FILE_CAST_FUNCTOR(InterfaceType))
                     .get_or(InterfaceType::UNKNOWN);
-                if(std::filesystem::exists(if_path / "ieee80211")) {
+
+                // Detect if interface is IEEE 802.11
+                ifreq request {};
+                libc::copy_string(static_cast<char*>(request.ifr_ifrn.ifrn_name), description);// NOLINT
+                if (sys::ioctl(static_cast<int>(*socket_descriptor), 0x8B01, &request) >= 0) {
                     type = InterfaceType::WIRELESS;
                 }
+
 
                 // Get MTU
                 const usize mtu = read_file(if_path / "mtu").map(INT_FILE_CAST_FUNCTOR(usize)).get_or(0);

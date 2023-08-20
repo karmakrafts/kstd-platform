@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 
 #endif
 
@@ -43,6 +44,7 @@
 #include <string>
 
 namespace kstd::platform {
+
 #if defined(PLATFORM_WINDOWS)
     using NativeFileHandle = HANDLE;
     using NativeModuleHandle = HMODULE;
@@ -75,6 +77,16 @@ namespace kstd::platform {
 #endif
 
     static inline const NativeModuleHandle invalid_module_handle = nullptr;
+
+    namespace sys {
+#ifdef PLATFORM_LINUX
+        template<typename... ARGS>
+        inline auto ioctl(NativeFileHandle file, u64 required, ARGS&&... args) noexcept -> i32 {
+            static_assert(sizeof...(ARGS) > 0, "Function requires at least 3 parameter!");
+            return ::ioctl(file, required, std::forward<ARGS>(args)...);// NOLINT
+        }
+#endif
+    }
 
     enum class Platform : u8 {
         WINDOWS,
