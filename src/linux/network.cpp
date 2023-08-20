@@ -31,6 +31,8 @@
     }
 
 namespace kstd::platform {
+    constexpr u16 verify_wireless_extensions = 0x8B01;
+
     using namespace std::string_literals;
     using NativeInterfaceAddress = struct ifaddrs;
 
@@ -64,19 +66,17 @@ namespace kstd::platform {
     inline auto open_socket() -> Result<usize> {
         using namespace std::string_literals;
 
-        static const std::array<usize, 4> families = {
-                AF_INET, AF_IPX, AF_AX25, AF_APPLETALK
-        };
+        static const std::array<usize, 4> families = {AF_INET, AF_IPX, AF_AX25, AF_APPLETALK};
 
         isize socket_descriptor = -1;
-        for (usize family : families) {
+        for(usize family : families) {
             socket_descriptor = socket(static_cast<int>(family), SOCK_DGRAM, 0);
-            if (socket_descriptor >= 0) {
+            if(socket_descriptor >= 0) {
                 return socket_descriptor;
             }
         }
 
-        return Error { "Unable to open socket"s };
+        return Error {"Unable to open socket"s};
     }
 
     auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>> {// NOLINT
@@ -87,8 +87,8 @@ namespace kstd::platform {
 
         // Open socket
         const auto socket_descriptor = open_socket();
-        if (!socket_descriptor) {
-            return Error { socket_descriptor.get_error() };
+        if(!socket_descriptor) {
+            return Error {socket_descriptor.get_error()};
         }
 
         // Enumerate interfaces
@@ -113,8 +113,8 @@ namespace kstd::platform {
                 switch(addr->ifa_addr->sa_family) {
                     case AF_INET: {
                         std::array<char, INET_ADDRSTRLEN> data {};
-                        if(::inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(addr->ifa_addr)->sin_addr, data.data(),// NOLINT
-                                       sizeof(data)) == nullptr) {
+                        if(::inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(addr->ifa_addr)->sin_addr,// NOLINT
+                                       data.data(), sizeof(data)) == nullptr) {
                             break;
                         }
                         address = std::string {data.cbegin(), data.cend()};
@@ -182,20 +182,20 @@ namespace kstd::platform {
                 auto type = read_file(if_path / "type").map(INT_FILE_CAST_FUNCTOR(InterfaceType))
                     .get_or(InterfaceType::UNKNOWN);
 
-                // Detect if interface is IEEE 802.11
+                // Detect if interface has installed IEEE 802.11 extensions
                 ifreq request {};
                 libc::copy_string(static_cast<char*>(request.ifr_ifrn.ifrn_name), description);// NOLINT
-                if (sys::ioctl(static_cast<int>(*socket_descriptor), 0x8B01, &request) >= 0) {
+                if (sys::ioctl(static_cast<int>(*socket_descriptor), verify_wireless_extensions, &request) >= 0) {
                     type = InterfaceType::WIRELESS;
                 }
-
 
                 // Get MTU
                 const usize mtu = read_file(if_path / "mtu").map(INT_FILE_CAST_FUNCTOR(usize)).get_or(0);
                 // clang-format on
 
                 // Push new interface
-                interfaces.emplace_back(if_path, description, std::move(addrs), speed, type, mtu);
+                interfaces.emplace_back(if_path, description, std::move(addrs), Option<WirelessInformation> {}, speed,
+                                        type, mtu);
             }
         }
 

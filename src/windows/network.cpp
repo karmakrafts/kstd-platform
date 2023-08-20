@@ -164,9 +164,8 @@ namespace kstd::platform {
                 speed = {};
             }
 
-            // clang-format off
-            interfaces.insert({name, desc, std::move(if_addrs), speed, static_cast<InterfaceType>(row.dwType), row.dwMtu});
-            // clang-format on
+            interfaces.insert({name, desc, std::move(if_addrs), Option<WirelessInformation> {}, speed,
+                               static_cast<InterfaceType>(row.dwType), row.dwMtu});
         }
 
         // Free information and return interfaces

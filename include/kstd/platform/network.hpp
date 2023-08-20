@@ -24,15 +24,18 @@
 #include <kstd/result.hpp>
 #include <kstd/streams/stream.hpp>
 #include <unordered_set>
+#include <utility>
 
 #ifdef PLATFORM_WINDOWS
 #include <Winsock2.h>
 #include <iphlpapi.h>
 #else
+
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <linux/if_packet.h>
 #include <net/if.h>
+
 #endif
 
 namespace kstd::platform {
@@ -76,6 +79,23 @@ namespace kstd::platform {
         UNKNOWN = 65535
     };
 
+    class WirelessInformation final {
+        std::string _network_name;
+
+        public:
+        inline WirelessInformation(std::string network_name) noexcept :
+                _network_name {std::move(network_name)} {
+        }
+
+        KSTD_DEFAULT_MOVE_COPY(WirelessInformation, WirelessInformation, inline)
+
+        ~WirelessInformation() noexcept = default;
+
+        [[nodiscard]] [[maybe_unused]] auto get_network_name() const noexcept -> const std::string& {
+            return _network_name;
+        }
+    };
+
     /**
      * This class represents the information about single addresses that are assigned to the interface. This class contains
      * the address as a optional literal string, the address family and the routing schema.
@@ -87,7 +107,8 @@ namespace kstd::platform {
 
         public:
         friend struct std::hash<InterfaceAddress>;
-        friend struct NetworkInterface;
+
+        friend class NetworkInterface;
 
         /**
          * This constructor constructs the address structure with all needed information. These are the literal address
@@ -105,6 +126,7 @@ namespace kstd::platform {
         }
 
         KSTD_DEFAULT_MOVE_COPY(InterfaceAddress, InterfaceAddress, inline)
+
         ~InterfaceAddress() noexcept = default;
 
         /**
@@ -215,49 +237,58 @@ namespace kstd::platform {
      * - MTU: The maximum transmission unit (MTU) of the interface adapter.
      */
     class NetworkInterface final {
+        std::unordered_set<InterfaceAddress> _addresses;
+        Option<WirelessInformation> _wireless_information;
         std::string _name;
         std::string _description;
-        std::unordered_set<InterfaceAddress> _addresses;
-        Option<usize> _link_speed;
         InterfaceType _type;
+        Option<usize> _link_speed;
         usize _mtu;
 
         public:
         friend struct std::hash<NetworkInterface>;
+
         friend auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>>;
 
         /**
          * This constructor constructs the interface with all needed values. This constructor is used by default in the
          * enumerate_interfaces function.
          *
-         * @param name        The name of the interface (Mostly the path to the interface on the system)
-         * @param description The description of the interface (The user-friendly name)
-         * @param addresses   The list of addresses of the interface
-         * @param link_speed  The optional speed of the interface adapter
-         * @param type        The type of the interface
-         * @param _mtu        The MTU (Maximum Transmission Unit) of the interface
+         * @param name                 The name of the interface (Mostly the path to the interface on the system)
+         * @param description          The description of the interface (The user-friendly name)
+         * @param addresses            The list of addresses of the interface
+         * @param wireless_information The information about the wireless network and the wireless connection if the
+         *                             network is wireless.
+         * @param link_speed           The optional speed of the interface adapter
+         * @param type                 The type of the interface
+         * @param _mtu                 The MTU (Maximum Transmission Unit) of the interface
          *
-         * @author             Cedric Hammes
-         * @since              18/08/2023
+         * @author                     Cedric Hammes
+         * @since                      18/08/2023
          */
         inline NetworkInterface(std::string name, std::string description,
-                                std::unordered_set<InterfaceAddress> addresses, Option<usize> link_speed,
+                                std::unordered_set<InterfaceAddress> addresses,
+                                Option<WirelessInformation> wireless_information, Option<usize> link_speed,
                                 InterfaceType type, usize mtu) noexcept :
+                _addresses {std::move(addresses)},
+                _wireless_information {std::move(wireless_information)},
                 _name {std::move(name)},
                 _description {std::move(description)},
-                _addresses {std::move(addresses)},
-                _link_speed {link_speed},
                 _type {type},
+                _link_speed {link_speed},
                 _mtu {mtu} {
         }
 
         KSTD_DEFAULT_MOVE_COPY(NetworkInterface, NetworkInterface, inline)
+
         ~NetworkInterface() noexcept = default;
 
 #ifdef PLATFORM_LINUX
+
         inline auto insert_address(const InterfaceAddress address) noexcept -> void {
             _addresses.insert(address);
         }
+
 #endif
 
         /**
@@ -268,7 +299,7 @@ namespace kstd::platform {
          */
         [[nodiscard]] inline auto get_mac_address() const noexcept -> const std::string& {
             // clang-format off
-            return streams::stream(_addresses).find_first([](auto& address) {
+            return streams::stream(_addresses).find_first([](auto &address) {
                 return address._family == AddressFamily::MAC;
             })->_address.get();
             // clang-format on
@@ -284,9 +315,11 @@ namespace kstd::platform {
         [[nodiscard]] [[maybe_unused]] inline auto has_addresses_by_family(const AddressFamily family) const noexcept
                 -> bool {
             // clang-format off
-            return streams::stream(_addresses).map(KSTD_FIELD_FUNCTOR(_family)).find_first([&](auto& value) {
-                return value == family;
-            }).has_value();
+            return streams::stream(_addresses).map(KSTD_FIELD_FUNCTOR(_family))
+                    .find_first([&](auto &value) {
+                        return value == family;
+                    })
+                    .has_value();
             // clang-format on
         }
 
@@ -300,9 +333,11 @@ namespace kstd::platform {
         [[nodiscard]] [[maybe_unused]] inline auto
         has_addresses_with_routing_scheme(const RoutingScheme scheme) const noexcept -> bool {
             // clang-format off
-            return streams::stream(_addresses).map(KSTD_FIELD_FUNCTOR(_routing_scheme)).find_first([&](auto& value) {
-                return value == scheme;
-            }).has_value();
+            return streams::stream(_addresses).map(KSTD_FIELD_FUNCTOR(_routing_scheme))
+                    .find_first([&](auto &value) {
+                        return value == scheme;
+                    })
+                    .has_value();
             // clang-format on
         }
 
@@ -334,6 +369,15 @@ namespace kstd::platform {
          */
         [[nodiscard]] auto get_addresses() const noexcept -> const std::unordered_set<InterfaceAddress>& {
             return _addresses;
+        }
+
+        /**
+         *
+         * @return
+         */
+        [[nodiscard]] [[maybe_unused]] auto get_wireless_information() const noexcept
+                -> const Option<WirelessInformation>& {
+            return _wireless_information;
         }
 
         /**

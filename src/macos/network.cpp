@@ -88,7 +88,8 @@ namespace kstd::platform {
                 switch(addr->ifa_addr->sa_family) {
                     case AF_INET: {
                         std::array<char, INET_ADDRSTRLEN> data {};
-                        if(::inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(addr->ifa_addr)->sin_addr, data.data(),// NOLINT
+                        if(::inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(addr->ifa_addr)->sin_addr,
+                                       data.data(),// NOLINT
                                        sizeof(data)) == nullptr) {
                             break;
                         }
@@ -154,8 +155,12 @@ namespace kstd::platform {
 
                 // Get type
                 auto type = read_file(if_path / "type").map(INT_FILE_CAST_FUNCTOR(InterfaceType))
-                        .get_or(InterfaceType::UNKNOWN);
-                if(std::filesystem::exists(if_path / "ieee80211")) {
+                                    .get_or(InterfaceType::UNKNOWN);
+
+                // Detect if interface has installed IEEE 802.11 extensions
+                ifreq request {};
+                libc::copy_string(static_cast<char*>(request.ifr_ifrn.ifrn_name), description);// NOLINT
+                if (sys::ioctl(static_cast<int>(*socket_descriptor), verify_wireless_extensions, &request) >= 0) {
                     type = InterfaceType::WIRELESS;
                 }
 
@@ -164,7 +169,8 @@ namespace kstd::platform {
                 // clang-format on
 
                 // Push new interface
-                interfaces.emplace_back(if_path, description, std::move(addrs), speed, type, mtu);
+                interfaces.emplace_back(if_path, description, std::move(addrs), Option<WirelessInformation> {}, speed,
+                                        type, mtu);
             }
         }
 
