@@ -75,6 +75,10 @@ namespace kstd::platform {
         UNKNOWN = 65535
     };
 
+    /**
+     * This class represents the information about single addresses that are assigned to the interface. This class contains
+     * the address as a optional literal string, the address family and the routing schema.
+     */
     class InterfaceAddress final {
         Option<std::string> _address;
         AddressFamily _family;
