@@ -89,14 +89,14 @@ namespace kstd::platform {
         auto const wlan_flag_set = (flags & InterfaceInfoFlags::WIRELESS) == InterfaceInfoFlags::WIRELESS;
 
         HANDLE wlan_client_handle = nullptr;
-        DWORD max_clients = 2;
+        DWORD client_version = 2;
         DWORD current_version = 0;
-        if(wlan_flag_set && FAILED(WlanOpenHandle(max_client, nullptr, &wlan_client_handle))) {
+        if(wlan_flag_set && FAILED(WlanOpenHandle(client_version, nullptr, &current_version, &wlan_client_handle))) {
             return Error {get_last_error()};
         }
 
         // Enumerate WLAN interfaces
-        WLAN_INTERFACE_INFO_LIST wlan_interface_list {};
+        PWLAN_INTERFACE_INFO_LIST wlan_interface_list = nullptr;
         if(wlan_flag_set && FAILED(WlanEnumInterfaces(wlan_client_handle, nullptr, &wlan_interface_list))) {
             return Error {get_last_error()};
         }
@@ -168,9 +168,51 @@ namespace kstd::platform {
                 // TODO: Add wireless information if interface is wireless
                 // https://learn.microsoft.com/de-de/windows/win32/api/wlanapi/nf-wlanapi-wlangetavailablenetworklist
 
-                for (int i = 0; i < wlan_interface_list->dwNumberOfItems; +i) {
-                    PWLAN_INTERFACE_INFO wlan_interface_info = &wlan_interface_list->InterfaceInfo[i];
+                for(int i = 0; i < wlan_interface_list->dwNumberOfItems; ++i) {
+                    if (wireless_information.has_value()) {
+                        break;
+                    }
 
+                    PWLAN_INTERFACE_INFO wlan_info = &wlan_interface_list->InterfaceInfo[i];// NOLINT
+
+                    // Get all available WLAN networks
+                    PWLAN_AVAILABLE_NETWORK_LIST available_network_list = nullptr;
+                    if(FAILED(WlanGetAvailableNetworkList(wlan_client_handle, &wlan_info->InterfaceGuid, 0, nullptr,
+                                                          &available_network_list))) {
+                        return Error {fmt::format("Unable to enumerate available networks for {} => {}", desc,
+                                                  get_last_error())};
+                    }
+
+                    // Enumerate all available WLAN networks
+                    for(int j = 0; j < available_network_list->dwNumberOfItems; ++j) {
+                        PWLAN_AVAILABLE_NETWORK available_network = &available_network_list->Network[j];// NOLINT
+
+                        // Check if device is currently connected to device
+                        if((available_network->dwFlags & WLAN_AVAILABLE_NETWORK_CONNECTED) ==
+                           WLAN_AVAILABLE_NETWORK_CONNECTED) {
+                            // Get SSID of network
+                            const auto ssid_length = available_network->dot11Ssid.uSSIDLength;
+                            std::string ssid(ssid_length + 1, '\0');
+                            if(ssid_length == 0) {
+                                ssid = "Hidden Network";
+                            }
+                            else {
+                                libc::memcpy(ssid.data(),
+                                             reinterpret_cast<const char*>(available_network->dot11Ssid.ucSSID),// NOLINT
+                                             ssid_length);
+                                ssid.resize(libc::get_string_length(ssid.c_str()));
+                            }
+
+                            // Insert wireless information
+                            wireless_information = {ssid};
+                            break;
+                        }
+                    }
+
+                    // Cleanup available WLAN network list
+                    if(available_network_list != nullptr) {
+                        WlanFreeMemory(available_network_list);
+                    }
                 }
             }
 
@@ -195,6 +237,11 @@ namespace kstd::platform {
             }
 
             interfaces.insert({name, desc, std::move(if_addrs), wireless_information, speed, type, row.dwMtu});
+        }
+
+        // Free wlan interface list in memory
+        if(wlan_interface_list != nullptr) {
+            WlanFreeMemory(wlan_interface_list);
         }
 
         // Close handle for WLAN client, if handle is valid
