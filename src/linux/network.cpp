@@ -154,8 +154,7 @@ namespace kstd::platform {
 
                 // Add address to original interface if there is one. If not, add the address to the addrs set
                 if(original_interface.has_value()) {
-                    original_interface->insert_address(
-                            InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
+                    original_interface->_addresses.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
                 }
                 else {
                     addrs.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});

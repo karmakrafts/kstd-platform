@@ -260,8 +260,8 @@ namespace kstd::platform {
 
         public:
         friend struct std::hash<NetworkInterface>;
-
-        friend auto enumerate_interfaces(InterfaceInfoFlags flags) noexcept -> Result<std::unordered_set<NetworkInterface>>;
+        friend auto enumerate_interfaces(InterfaceInfoFlags flags) noexcept
+                -> Result<std::unordered_set<NetworkInterface>>;
 
         /**
          * This constructor constructs the interface with all needed values. This constructor is used by default in the
@@ -296,13 +296,24 @@ namespace kstd::platform {
 
         ~NetworkInterface() noexcept = default;
 
-#ifdef PLATFORM_LINUX
-
-        inline auto insert_address(const InterfaceAddress address) noexcept -> void {
-            _addresses.insert(address);
+        [[nodiscard]] [[maybe_unused]] inline auto get_addresses_by_family(const AddressFamily family) const noexcept
+                -> std::unordered_set<InterfaceAddress> {
+            // clang-format off
+            return streams::stream(_addresses).filter([&](auto& addr) {
+                return addr._family == family;
+            }).collect<std::unordered_set>(streams::collectors::insert);
+            // clang-format on
         }
 
-#endif
+        [[nodiscard]] [[maybe_unused]] inline auto
+        get_addresses_by_routing_scheme(const RoutingScheme scheme) const noexcept
+                -> std::unordered_set<InterfaceAddress> {
+            // clang-format off
+            return streams::stream(_addresses).filter([&](auto& addr) {
+                return addr._routing_scheme == scheme;
+            }).collect<std::unordered_set>(streams::collectors::insert);
+            // clang-format on
+        }
 
         /**
          * This function enumerates all collected addresses of the interface, selects the first MAC address found and

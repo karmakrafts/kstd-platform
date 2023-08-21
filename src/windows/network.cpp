@@ -170,7 +170,7 @@ namespace kstd::platform {
 
                 for (int i = 0; i < wlan_interface_list->dwNumberOfItems; +i) {
                     PWLAN_INTERFACE_INFO wlan_interface_info = &wlan_interface_list->InterfaceInfo[i];
-                    
+
                 }
             }
 
