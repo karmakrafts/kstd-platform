@@ -23,7 +23,9 @@
 #include "kstd/platform/platform.hpp"
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <kstd/safe_alloc.hpp>
+#include <linux/wireless.h>
 
 #define INT_FILE_CAST_FUNCTOR(t)                                                                                       \
     [](auto value) noexcept -> auto {                                                                                  \
@@ -31,8 +33,6 @@
     }
 
 namespace kstd::platform {
-    constexpr u16 verify_wireless_extensions = 0x8B01;
-
     using namespace std::string_literals;
     using NativeInterfaceAddress = struct ifaddrs;
 
@@ -79,7 +79,8 @@ namespace kstd::platform {
         return Error {"Unable to open socket"s};
     }
 
-    auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>> {// NOLINT
+    auto enumerate_interfaces(const InterfaceInfoFlags flags) noexcept
+            -> Result<std::unordered_set<NetworkInterface>> {// NOLINT
         NativeInterfaceAddress* addresses = nullptr;
         if(::getifaddrs(&addresses) < 0) {
             return Error {get_last_error()};
@@ -181,25 +182,43 @@ namespace kstd::platform {
                 // Get type
                 auto type = read_file(if_path / "type").map(INT_FILE_CAST_FUNCTOR(InterfaceType))
                     .get_or(InterfaceType::UNKNOWN);
+                // clang-format on
 
                 // Detect if interface has installed IEEE 802.11 extensions
-                ifreq request {};
+                iwreq request {};
+                Option<WirelessInformation> wireless_information {};
                 libc::copy_string(static_cast<char*>(request.ifr_ifrn.ifrn_name), description);// NOLINT
-                if (sys::ioctl(static_cast<int>(*socket_descriptor), verify_wireless_extensions, &request) >= 0) {
+                if(sys::ioctl(static_cast<int>(*socket_descriptor), SIOCGIWNAME, &request) >= 0) {
                     type = InterfaceType::WIRELESS;
+
+                    // Query information about Wireless network and connection if flags are set
+                    if ((flags & InterfaceInfoFlags::WIRELESS) == InterfaceInfoFlags::WIRELESS) {
+                        // Get the ESSID of the WLAN network
+                        std::array<char, IW_ESSID_MAX_SIZE + 1> essid_buffer {'\0'};
+                        request.u.essid.length = IW_ESSID_MAX_SIZE + 1;// NOLINT
+                        request.u.essid.pointer = essid_buffer.data();
+                        if(sys::ioctl(static_cast<int>(*socket_descriptor), SIOCGIWESSID, &request) < 0) {
+                            return kstd::Error {fmt::format("Unable to collect wireless information of {} => {}",
+                                                            description, get_last_error())};
+                        }
+                        auto essid = std::string {essid_buffer.cbegin(), essid_buffer.cend()};
+                        essid.resize(libc::get_string_length(essid.c_str()));
+
+                        // Construct the wireless information
+                        wireless_information = WirelessInformation {essid};
+                    }
                 }
 
                 // Get MTU
                 const usize mtu = read_file(if_path / "mtu").map(INT_FILE_CAST_FUNCTOR(usize)).get_or(0);
-                // clang-format on
 
                 // Push new interface
-                interfaces.emplace_back(if_path, description, std::move(addrs), Option<WirelessInformation> {}, speed,
-                                        type, mtu);
+                interfaces.emplace_back(if_path, description, std::move(addrs), wireless_information, speed, type, mtu);
             }
         }
 
         freeifaddrs(addresses);
+        close(static_cast<int>(*socket_descriptor));
         return std::unordered_set<NetworkInterface> {interfaces.begin(), interfaces.end()};
     }
 }// namespace kstd::platform

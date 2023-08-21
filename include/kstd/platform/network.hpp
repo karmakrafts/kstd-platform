@@ -20,6 +20,7 @@
 #pragma once
 
 #include <fmt/format.h>
+#include <kstd/bitflags.hpp>
 #include <kstd/option.hpp>
 #include <kstd/result.hpp>
 #include <kstd/streams/stream.hpp>
@@ -29,6 +30,7 @@
 #ifdef PLATFORM_WINDOWS
 #include <Winsock2.h>
 #include <iphlpapi.h>
+#include <wlanapi.h>
 #else
 
 #include <arpa/inet.h>
@@ -79,6 +81,12 @@ namespace kstd::platform {
         UNKNOWN = 65535
     };
 
+    KSTD_BITFLAGS(u8, InterfaceInfoFlags, WIRELESS = 0b0001, DHCP = 0b0010, DNS = 0b0100)// NOLINT
+
+    /**
+     * This class represents extra information about the interface, if the IEEE 802.11 extensions are enabled. This
+     * mostly contains information about information about the wireless network.
+     */
     class WirelessInformation final {
         std::string _network_name;
 
@@ -91,6 +99,11 @@ namespace kstd::platform {
 
         ~WirelessInformation() noexcept = default;
 
+        /**
+         * This function returns the name of the WLAN network.
+         *
+         * @return The WLAN network name.
+         */
         [[nodiscard]] [[maybe_unused]] auto get_network_name() const noexcept -> const std::string& {
             return _network_name;
         }
@@ -248,7 +261,7 @@ namespace kstd::platform {
         public:
         friend struct std::hash<NetworkInterface>;
 
-        friend auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>>;
+        friend auto enumerate_interfaces(InterfaceInfoFlags flags) noexcept -> Result<std::unordered_set<NetworkInterface>>;
 
         /**
          * This constructor constructs the interface with all needed values. This constructor is used by default in the
@@ -432,7 +445,8 @@ namespace kstd::platform {
      *
      * @return A collection of all interfaces or an error
      */
-    [[nodiscard]] auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>>;
+    [[nodiscard]] auto enumerate_interfaces(InterfaceInfoFlags flags = InterfaceInfoFlags::NONE) noexcept
+            -> Result<std::unordered_set<NetworkInterface>>;
 }// namespace kstd::platform
 
 KSTD_HASH((kstd::platform::NetworkInterface), [&] {

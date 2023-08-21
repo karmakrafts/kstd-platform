@@ -61,7 +61,7 @@ namespace kstd::platform {
         }
     }
 
-    auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>> {// NOLINT
+    auto enumerate_interfaces(const InterfaceInfoFlags flags) noexcept -> Result<std::unordered_set<NetworkInterface>> {// NOLINT
         NativeInterfaceAddress* addresses = nullptr;
         if(::getifaddrs(&addresses) < 0) {
             return Error {get_last_error()};

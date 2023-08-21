@@ -48,7 +48,7 @@ namespace kstd::platform {
         return kstd::utils::to_mbs({address_buffer.data(), static_cast<usize>(length)});
     }
 
-    auto enumerate_interfaces() noexcept -> Result<std::unordered_set<NetworkInterface>> {
+    auto enumerate_interfaces(const InterfaceInfoFlags flags) noexcept -> Result<std::unordered_set<NetworkInterface>> {
         using namespace std::string_literals;
 
         constexpr auto adapter_addrs_flags =
@@ -82,6 +82,22 @@ namespace kstd::platform {
             // Free information and return error
             libc::free(table);            // NOLINT
             libc::free(adapter_addresses);// NOLINT
+            return Error {get_last_error()};
+        }
+
+        // Open Windows WLAN client handle
+        auto const wlan_flag_set = (flags & InterfaceInfoFlags::WIRELESS) == InterfaceInfoFlags::WIRELESS;
+
+        HANDLE wlan_client_handle = nullptr;
+        DWORD max_clients = 2;
+        DWORD current_version = 0;
+        if(wlan_flag_set && FAILED(WlanOpenHandle(max_client, nullptr, &wlan_client_handle))) {
+            return Error {get_last_error()};
+        }
+
+        // Enumerate WLAN interfaces
+        WLAN_INTERFACE_INFO_LIST wlan_interface_list {};
+        if(wlan_flag_set && FAILED(WlanEnumInterfaces(wlan_client_handle, nullptr, &wlan_interface_list))) {
             return Error {get_last_error()};
         }
 
@@ -144,6 +160,20 @@ namespace kstd::platform {
                         .collect_into(if_addrs, streams::collectors::insert);
             }
 
+            const auto type = static_cast<InterfaceType>(row.dwType);
+
+            // Query information about Wireless network and connection if flags are set
+            Option<WirelessInformation> wireless_information {};
+            if(wlan_flag_set && type == InterfaceType::WIRELESS) {
+                // TODO: Add wireless information if interface is wireless
+                // https://learn.microsoft.com/de-de/windows/win32/api/wlanapi/nf-wlanapi-wlangetavailablenetworklist
+
+                for (int i = 0; i < wlan_interface_list->dwNumberOfItems; +i) {
+                    PWLAN_INTERFACE_INFO wlan_interface_info = &wlan_interface_list->InterfaceInfo[i];
+                    
+                }
+            }
+
             // Add MAC address to addresses
             auto const phys_addr_len = row.dwPhysAddrLen;
             std::string mac_address = phys_addr_len > 0 ? "" : "00:00:00:00:00:00";
@@ -164,8 +194,12 @@ namespace kstd::platform {
                 speed = {};
             }
 
-            interfaces.insert({name, desc, std::move(if_addrs), Option<WirelessInformation> {}, speed,
-                               static_cast<InterfaceType>(row.dwType), row.dwMtu});
+            interfaces.insert({name, desc, std::move(if_addrs), wireless_information, speed, type, row.dwMtu});
+        }
+
+        // Close handle for WLAN client, if handle is valid
+        if(wlan_client_handle != nullptr) {
+            CloseHandle(wlan_client_handle);
         }
 
         // Free information and return interfaces

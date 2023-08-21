@@ -25,7 +25,9 @@
 #undef interface
 
 TEST(kstd_platform_Network, test_enumerate_interfaces) {
-    const auto result = kstd::platform::enumerate_interfaces();
+    using namespace kstd::platform;
+    
+    const auto result = enumerate_interfaces(InterfaceInfoFlags::WIRELESS);
     ASSERT_NO_THROW(result.throw_if_error());// NOLINT
 
     for(const auto& interface : *result) {
@@ -33,9 +35,15 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
         std::cout << " - Path: " << interface.get_name() << '\n';
         std::cout << " - MTU: " << interface.get_mtu() << '\n';
         std::cout << " - MAC Address: " << interface.get_mac_address() << '\n';
-        std::cout << " - Type: " << kstd::platform::get_interface_type_name(interface.get_type()) << '\n';
+        std::cout << " - Type: " << get_interface_type_name(interface.get_type()) << '\n';
         if(interface.get_link_speed().has_value()) {
             std::cout << " - Speed: " << *interface.get_link_speed() << '\n';
+        }
+
+        const auto wireless_information = interface.get_wireless_information();
+        if (wireless_information.has_value()) {
+            std::cout << " - Wireless information:\n";
+            std::cout << "   - WLAN Network Name: " << wireless_information->get_network_name() << '\n';
         }
 
         if(!interface.get_addresses().empty()) {
@@ -47,8 +55,8 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
             if(address.get_address().has_value()) {
                 std::cout << *address.get_address() << ' ';
             }
-            std::cout << "(" << kstd::platform::get_address_family_name(address.get_family()) << '/'
-                      << kstd::platform::get_routing_scheme_name(address.get_routing_scheme()) << ")\n";
+            std::cout << "(" << get_address_family_name(address.get_family()) << '/'
+                      << get_routing_scheme_name(address.get_routing_scheme()) << ")\n";
         }
     }
 }
