@@ -95,11 +95,19 @@ namespace kstd::platform {
                     }
                 }
 
+                // Push and cleanup
                 available_networks.insert(
                         {mac_addr, ssid, first_bss_entry.ulChCenterFrequency / 1000, wlan_network->wlanSignalQuality, false});
+                WlanFreeMemory(bss_list);
             }
+
+            WlanFreeMemory(wlan_networks);
             break;
         }
+
+        // Cleanup
+        WlanFreeMemory(interface_list);
+        CloseHandle(client_handle);
         return {available_networks};
     }
 
