@@ -33,6 +33,7 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
 
     for(const auto& interface : *result) {
         std::cout << interface.get_description() << '\n';
+        std::cout << " - Index: " << interface.get_index() << '\n';
         std::cout << " - Path: " << interface.get_name() << '\n';
         std::cout << " - MTU: " << interface.get_mtu() << '\n';
         std::cout << " - MAC Address: " << interface.get_mac_address() << '\n';
@@ -45,6 +46,22 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
         if (interface.get_type() == InterfaceType::WIRELESS) {
             const auto available_networks = enumerate_wlan_networks(interface);
             ASSERT_NO_THROW(available_networks.throw_if_error());
+
+            std::cout << " - Available WLAN APs:\n";
+            for (const auto& network : *available_networks) {
+                std::cout << "   - " << network.get_mac_address() << '\n';
+                if (network.get_ssid()) {
+                    std::cout << "     - SSID: " << *network.get_ssid() << '\n';
+                }
+                std::cout << "     - Frequency: " << network.get_frequency() << " MHz\n";
+
+                std::cout << "     - Signal Strength: " << static_cast<kstd::usize>(network.get_signal_strength());
+                if (network.is_signal_strength_unit_unspecified()) {
+                    std::cout << " mBm\n";
+                } else {
+                    std::cout << " units\n";
+                }
+            }
         }
 
         // Get all addresses

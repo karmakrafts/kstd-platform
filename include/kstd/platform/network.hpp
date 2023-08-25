@@ -57,7 +57,7 @@ namespace kstd::platform {
 
             return Error {"Unable to open socket"s};
         }
-    }
+    }// namespace
 #endif
 
     enum class AddressFamily : u8 {
@@ -248,6 +248,7 @@ namespace kstd::platform {
         InterfaceType _type;
         Option<usize> _link_speed;
         usize _mtu;
+        usize _interface_index;
 
         public:
         friend struct std::hash<NetworkInterface>;
@@ -270,16 +271,16 @@ namespace kstd::platform {
          * @author                     Cedric Hammes
          * @since                      18/08/2023
          */
-        inline NetworkInterface(std::string name, std::string description,
-                                std::unordered_set<InterfaceAddress> addresses,
-                                Option<usize> link_speed,
+        inline NetworkInterface(usize if_index, std::string name, std::string description,
+                                std::unordered_set<InterfaceAddress> addresses, Option<usize> link_speed,
                                 InterfaceType type, usize mtu) noexcept :
                 _addresses {std::move(addresses)},
                 _name {std::move(name)},
                 _description {std::move(description)},
                 _type {type},
                 _link_speed {link_speed},
-                _mtu {mtu} {
+                _mtu {mtu},
+                _interface_index {if_index} {
         }
 
         KSTD_DEFAULT_MOVE_COPY(NetworkInterface, NetworkInterface, inline)
@@ -353,6 +354,15 @@ namespace kstd::platform {
                     })
                     .has_value();
             // clang-format on
+        }
+
+        /**
+         * This function returns the index of the interface
+         *
+         * @return The interface index
+         */
+        [[nodiscard]] auto get_index() const noexcept -> usize {
+            return _interface_index;
         }
 
         /**

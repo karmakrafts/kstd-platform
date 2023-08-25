@@ -156,6 +156,13 @@ namespace kstd::platform {
                 std::filesystem::current_path("/sys/class/net");
                 const auto if_path = std::filesystem::canonical(std::string {buffer.data()});
 
+                // Get index
+                auto index = read_file(if_path / "ifindex").map(INT_FILE_CAST_FUNCTOR(usize));
+                if(index.is_empty()) {
+                    return Error {fmt::format(
+                            "Unable to enumerate networks: Illegal content in /sys/class/net/{}/ifindex", description)};
+                }
+
                 // clang-format off
                 // Interface Speed
                 auto speed = read_file(if_path / "speed").map(INT_FILE_CAST_FUNCTOR(usize));
@@ -180,7 +187,7 @@ namespace kstd::platform {
                 const usize mtu = read_file(if_path / "mtu").map(INT_FILE_CAST_FUNCTOR(usize)).get_or(0);
 
                 // Push new interface
-                interfaces.emplace_back(if_path, description, std::move(addrs), speed, type, mtu);
+                interfaces.emplace_back(*index, if_path, description, std::move(addrs), speed, type, mtu);
             }
         }
 

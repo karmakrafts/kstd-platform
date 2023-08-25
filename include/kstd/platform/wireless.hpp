@@ -20,51 +20,83 @@
 #pragma once
 
 #include <kstd/bitflags.hpp>
+#include <kstd/macros.hpp>
 #include <kstd/result.hpp>
 #include <unordered_set>
-#include <kstd/macros.hpp>
 
 #ifdef PLATFORM_WINDOWS
 #include <wlanapi.h>
 #else
+#include <libnl3/netlink/attr.h>
+#include <libnl3/netlink/errno.h>
+#include <libnl3/netlink/genl/ctrl.h>
+#include <libnl3/netlink/genl/genl.h>
+#include <libnl3/netlink/handlers.h>
+#include <libnl3/netlink/msg.h>
+#include <libnl3/netlink/netlink.h>
+#include <libnl3/netlink/socket.h>
 #include <linux/nl80211.h>
-#include <netlink/netlink.h>
-#include <netlink/genl/genl.h>
-#include <netlink/genl/ctrl.h>
-
-// Undefine __USE_MISC to prevent macro redefinition
-#undef __USE_MISC
-#include <net/if.h>
 #endif
 
 #include "kstd/platform/network.hpp"
 
 namespace kstd::platform {
 #ifdef PLATFORM_LINUX
-    namespace {
-        namespace nl {
-            KSTD_DEFAULT_DELETER(SocketDeleter, nl_socket_free)
-            KSTD_DEFAULT_DELETER(MessageDeleter, nlmsg_free)
-            KSTD_DEFAULT_DELETER(CallbackDeleter, nl_cb_put)
-        }
-    }
+    namespace { namespace nl {
+        KSTD_DEFAULT_DELETER(SocketDeleter, nl_socket_free)
+        KSTD_DEFAULT_DELETER(MessageDeleter, nlmsg_free)
+        KSTD_DEFAULT_DELETER(CallbackDeleter, nl_cb_put)
+    }}// namespace ::nl
 #endif
 
     class WlanNetwork final {
-        std::string _ssid;
+        std::string _mac_address;
+        Option<std::string> _ssid;
+        usize _frequency;
+        u8 _signal_strength;
+        bool _signal_strength_unspec;
 
         public:
         friend struct std::hash<WlanNetwork>;
 
-        inline WlanNetwork(const std::string ssid) noexcept :
-                _ssid {std::move(ssid)} {
+        inline WlanNetwork(const std::string mac_address, const Option<std::string> ssid, const usize frequency,
+                           const u8 signal_strength, const bool signal_strength_unspec) noexcept :
+                _mac_address {mac_address},
+                _ssid {std::move(ssid)},
+                _frequency {frequency},
+                _signal_strength {signal_strength},
+                _signal_strength_unspec {signal_strength_unspec} {
         }
 
         KSTD_DEFAULT_MOVE_COPY(WlanNetwork, WlanNetwork, inline)
         ~WlanNetwork() noexcept = default;
 
-        [[nodiscard]] inline auto get_ssid() const noexcept -> const std::string& {
+        [[nodiscard]] inline auto get_mac_address() const noexcept -> const std::string& {
+            return _mac_address;
+        }
+
+        [[nodiscard]] inline auto get_ssid() const noexcept -> const Option<std::string>& {
             return _ssid;
+        }
+
+        [[nodiscard]] inline auto get_frequency() const noexcept -> usize {
+            return _frequency;
+        }
+
+        [[nodiscard]] inline auto get_signal_strength() const noexcept -> u8 {
+            return _signal_strength;
+        }
+
+        [[nodiscard]] inline auto is_signal_strength_unit_unspecified() const noexcept -> bool {
+            return _signal_strength_unspec;
+        }
+
+        [[nodiscard]] inline auto operator==(const WlanNetwork& other) const noexcept -> bool {
+            return _ssid == other._ssid;
+        }
+
+        [[nodiscard]] inline auto operator!=(const WlanNetwork& other) const noexcept -> bool {
+            return !(*this == other);
         }
     };
 
