@@ -58,8 +58,8 @@ namespace kstd::platform {
         public:
         friend struct std::hash<WifiBand>;
 
-        inline WifiBand(const std::string mac_address, const usize frequency, const usize signal_strength,
-                        const bool signal_strength_unspec) :// NOLINT
+        inline WifiBand(const std::string mac_address, const usize frequency, const usize signal_strength,// NOLINT
+                        const bool signal_strength_unspec) :
                 _mac_address {std::move(mac_address)},
                 _frequency {frequency},
                 _signal_strength {signal_strength},
@@ -69,18 +69,40 @@ namespace kstd::platform {
         KSTD_DEFAULT_MOVE_COPY(WifiBand, WifiBand, inline)
         ~WifiBand() noexcept = default;
 
+        /**
+         * This function returns the MAC address of the band as string reference.
+         *
+         * @return The band's MAC address
+         */
         [[nodiscard]] inline auto get_mac_address() const noexcept -> const std::string& {
             return _mac_address;
         }
 
+        /**
+         * This function returns the frequency of the band as usize.
+         *
+         * @return The network frequency.
+         */
         [[nodiscard]] inline auto get_frequency() const noexcept -> usize {
             return _frequency;
         }
 
+        /**
+         * This function returns the strength of the signal as usize. If {@see is_signal_strength_unit_unspecified}
+         * returns true, the strength is specified in an unknown unit otherwise the signal is specified in dBm.
+         *
+         * @return The signal strength as numerical (usize)
+         */
         [[nodiscard]] inline auto get_signal_strength() const noexcept -> usize {
             return _signal_strength;
         }
 
+        /**
+         * This function defines if the signal strength of the band is specified with the unit dBm. If this function
+         * returns true, the unit is dBm. If this function returns false, the unit is unknown.
+         *
+         * @return Whether the unit of signal strength is specified
+         */
         [[nodiscard]] inline auto is_signal_strength_unit_unspecified() const noexcept -> bool {
             return _signal_strength_unspec;
         }
@@ -113,10 +135,20 @@ namespace kstd::platform {
         KSTD_DEFAULT_MOVE_COPY(WifiNetwork, WifiNetwork, inline)
         ~WifiNetwork() noexcept = default;
 
+        /**
+         * This function returns the SSID of the network, if there is a SSID. The SSID is returned as Option.
+         *
+         * @return The network's SSID
+         */
         [[nodiscard]] inline auto get_ssid() const noexcept -> const Option<std::string>& {
             return _ssid;
         }
 
+        /**
+         * This function returns a reference of a vector with all received network bands.
+         *
+         * @return The network's bands
+         */
         [[nodiscard]] inline auto get_bands() const noexcept -> const std::vector<WifiBand>& {
             return _bands;
         }
@@ -130,9 +162,15 @@ namespace kstd::platform {
         }
     };
 
-    // clang-format off
-    [[nodiscard]] auto enumerate_wlan_networks(const NetworkInterface& interface) noexcept -> Result<std::unordered_set<WifiNetwork>>;
-    // clang-format on
+    /**
+     * This function initializes a scan on the network interface, if the interface is wireless. After the scan, all
+     * results are collected into the set of networks.
+     *
+     * @param interface The interface, with that should be scanned
+     * @return          All found WiFi networks in a set
+     */
+    [[nodiscard]] auto enumerate_wlan_networks(const NetworkInterface& interface) noexcept
+            -> Result<std::unordered_set<WifiNetwork>>;
 }// namespace kstd::platform
 
 KSTD_DEFAULT_HASH((kstd::platform::WifiBand), value._frequency, value._signal_strength_unspec, value._signal_strength)
