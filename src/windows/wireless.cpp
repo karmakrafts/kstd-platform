@@ -22,7 +22,7 @@
 namespace kstd::platform {
 
     auto enumerate_wlan_networks(const NetworkInterface& interface) noexcept
-            -> Result<std::unordered_set<WlanNetwork>> {
+            -> Result<std::unordered_set<WifiNetwork>> {
         using namespace std::string_literals;
         // Cancel the function if the type of the interface is not wireless
         if(interface.get_type() != InterfaceType::WIRELESS) {
@@ -44,7 +44,7 @@ namespace kstd::platform {
         }
 
         // Enumerate interfaces and get information from the right interface
-        std::unordered_set<WlanNetwork> available_networks {};
+        std::unordered_set<WifiNetwork> available_networks {};
         for(int i = 0; i < interface_list->dwNumberOfItems; ++i) {
             const auto* wlan_info = &interface_list->InterfaceInfo[i];// NOLINT
             if(utils::to_mbs({static_cast<const WCHAR*>(wlan_info->strInterfaceDescription)}) !=

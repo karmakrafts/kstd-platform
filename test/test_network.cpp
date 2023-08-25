@@ -49,17 +49,23 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
 
             std::cout << " - Available WLAN APs:\n";
             for (const auto& network : *available_networks) {
-                std::cout << "   - " << network.get_mac_address() << '\n';
                 if (network.get_ssid()) {
                     std::cout << "     - SSID: " << *network.get_ssid() << '\n';
                 }
-                std::cout << "     - Frequency: " << network.get_frequency() << " MHz\n";
 
-                std::cout << "     - Signal Strength: " << network.get_signal_strength();
-                if (network.is_signal_strength_unit_unspecified()) {
-                    std::cout << " units\n";
-                } else {
-                    std::cout << " dBm\n";
+                // Print out bands
+                std::cout << "     - Bands:\n";
+                const auto band_count = network.get_bands().size();
+                for (kstd::usize i = 0; i < band_count; ++i) {
+                    const auto& band = network.get_bands().at(i);
+                    std::cout << "        - #" << i << " (" << band.get_frequency() << " dBm)\n";
+                    std::cout << "           - MAC Address: " << band.get_mac_address() << '\n';
+                    std::cout << "           - Signal Strength: " << band.get_signal_strength();
+                    if (band.is_signal_strength_unit_unspecified()) {
+                        std::cout << " units\n";
+                    } else {
+                        std::cout << " dBm\n";
+                    }
                 }
             }
         }

@@ -21,6 +21,7 @@
 
 #include "kstd/platform/wireless.hpp"
 #include "kstd/platform/platform.hpp"
+#include <iostream>
 
 namespace kstd::platform {
     struct ScanResult {
@@ -145,13 +146,14 @@ namespace kstd::platform {
             return NL_SKIP;
         }
 
-        // Push network into list
-        Option<std::string> bssid = compute_ssid(static_cast<u_char*>(nla_data(bss[NL80211_BSS_INFORMATION_ELEMENTS])),
-                                                 nla_len(bss[NL80211_BSS_INFORMATION_ELEMENTS]));
-        if(bssid->empty()) {
-            bssid = {};
+        // Get network SSID
+        Option<std::string> ssid = compute_ssid(static_cast<u_char*>(nla_data(bss[NL80211_BSS_INFORMATION_ELEMENTS])),
+                                                nla_len(bss[NL80211_BSS_INFORMATION_ELEMENTS]));
+        if(ssid->empty()) {
+            ssid = {};
         }
 
+        // Get signal strength
         bool signal_strength_unspec = false;
         u8 signal_strength = 0;
         if(bss[NL80211_BSS_SIGNAL_MBM] != nullptr) {
@@ -163,15 +165,17 @@ namespace kstd::platform {
             signal_strength_unspec = true;
         }
 
-        auto* interfaces = static_cast<std::unordered_set<WlanNetwork>*>(arg);
-        interfaces->insert(WlanNetwork {parse_mac_addr(static_cast<u_char*>(nla_data(bss[NL80211_BSS_BSSID]))), bssid,
-                                        nla_get_u32(bss[NL80211_BSS_FREQUENCY]), signal_strength,
-                                        signal_strength_unspec});
+        auto* interfaces = static_cast<std::unordered_set<WifiNetwork>*>(arg);
+        interfaces->insert(
+                WifiNetwork {ssid,
+                             {{parse_mac_addr(static_cast<u_char*>(nla_data(bss[NL80211_BSS_BSSID]))),
+                               nla_get_u32(bss[NL80211_BSS_FREQUENCY]), signal_strength, signal_strength_unspec}}});
         return NL_SKIP;
     }
 
+
     auto enumerate_wlan_networks(const NetworkInterface& interface) noexcept
-            -> Result<std::unordered_set<WlanNetwork>> {
+            -> Result<std::unordered_set<WifiNetwork>> {
         using namespace std::string_literals;
 
         ScanResult result {.done = false, .aborted = false};
@@ -198,7 +202,7 @@ namespace kstd::platform {
         }
 
         // Set Socket membership
-        int scan_group_id; // NOLINT
+        int scan_group_id;// NOLINT
         if((scan_group_id = genl_ctrl_resolve_grp(socket.get(), "nl80211", "scan")) < 0) {
             return Error {fmt::format("Unable to enumerate Wi-Fi networks: {} (Unable to resolve scan group id)",
                                       nl_geterror(family_id))};
@@ -286,12 +290,11 @@ namespace kstd::platform {
         // Drop socket membership
         nl_socket_drop_membership(socket.get(), scan_group_id);
 
-        // Collect all detected SSIDs
-        std::unordered_set<WlanNetwork> networks {};
+        std::unordered_set<WifiNetwork> raw_networks {};
         const auto get_scan_message = std::unique_ptr<nl_msg, nl::MessageDeleter<nl_msg>> {nlmsg_alloc()};
         genlmsg_put(get_scan_message.get(), 0, 0, family_id, 0, NLM_F_DUMP, NL80211_CMD_GET_SCAN, 0);
         nla_put_u32(get_scan_message.get(), NL80211_ATTR_IFINDEX, interface_index);
-        nl_socket_modify_cb(socket.get(), NL_CB_VALID, NL_CB_CUSTOM, dump_callback, &networks);
+        nl_socket_modify_cb(socket.get(), NL_CB_VALID, NL_CB_CUSTOM, dump_callback, &raw_networks);
         if(nl_send_auto(socket.get(), get_scan_message.get()) == 0) {
             return Error {"Unable to enumerate Wi-Fi networks: No bytes are sent to kernel"s};
         }
@@ -301,7 +304,30 @@ namespace kstd::platform {
             return Error {fmt::format("Unable to enumerate Wi-Fi networks: {}", nl_geterror(-return_code))};
         }
 
-        return {networks};
+        // Deduplicate network list
+        // TODO: Edge-Case => If there is not SSID, the network will deleted from the list of available networks
+        std::vector<WifiNetwork> networks {};
+        for(const auto& network : raw_networks) {
+            auto real_network = streams::stream(networks).find_first([&](auto& value) {
+                if(network.get_ssid()) {
+                    if(!value.get_ssid()) {
+                        return false;
+                    }
+
+                    return *network.get_ssid() == *value.get_ssid();
+                }
+                return false;
+            });
+
+            if(real_network) {
+                real_network->_bands.push_back(network.get_bands()[0]);
+                continue;
+            }
+
+            networks.push_back(network);
+        }
+
+        return {{networks.cbegin(), networks.cend()}};
     }
 }// namespace kstd::platform
 

@@ -23,6 +23,7 @@
 #include <kstd/macros.hpp>
 #include <kstd/result.hpp>
 #include <unordered_set>
+#include <vector>
 
 #ifndef PLATFORM_WINDOWS
 #include <libnl3/netlink/attr.h>
@@ -48,34 +49,28 @@ namespace kstd::platform {
     }}// namespace ::nl
 #endif
 
-    class WlanNetwork final {
+    class WifiBand {
         std::string _mac_address;
-        Option<std::string> _ssid;
         usize _frequency;
         usize _signal_strength;
         bool _signal_strength_unspec;
 
         public:
-        friend struct std::hash<WlanNetwork>;
+        friend struct std::hash<WifiBand>;
 
-        inline WlanNetwork(const std::string mac_address, const Option<std::string> ssid, const usize frequency,
-                           const usize signal_strength, const bool signal_strength_unspec) noexcept :
-                _mac_address {mac_address},
-                _ssid {std::move(ssid)},
+        inline WifiBand(const std::string mac_address, const usize frequency, const usize signal_strength,
+                        const bool signal_strength_unspec) :// NOLINT
+                _mac_address {std::move(mac_address)},
                 _frequency {frequency},
                 _signal_strength {signal_strength},
                 _signal_strength_unspec {signal_strength_unspec} {
         }
 
-        KSTD_DEFAULT_MOVE_COPY(WlanNetwork, WlanNetwork, inline)
-        ~WlanNetwork() noexcept = default;
+        KSTD_DEFAULT_MOVE_COPY(WifiBand, WifiBand, inline)
+        ~WifiBand() noexcept = default;
 
         [[nodiscard]] inline auto get_mac_address() const noexcept -> const std::string& {
             return _mac_address;
-        }
-
-        [[nodiscard]] inline auto get_ssid() const noexcept -> const Option<std::string>& {
-            return _ssid;
         }
 
         [[nodiscard]] inline auto get_frequency() const noexcept -> usize {
@@ -90,18 +85,59 @@ namespace kstd::platform {
             return _signal_strength_unspec;
         }
 
-        [[nodiscard]] inline auto operator==(const WlanNetwork& other) const noexcept -> bool {
-            return _ssid == other._ssid && _mac_address == other._mac_address;
+        [[nodiscard]] inline auto operator==(const WifiBand& other) const noexcept -> bool {
+            return _mac_address == other._mac_address && _frequency == other._frequency &&
+                   _signal_strength == other._signal_strength &&
+                   _signal_strength_unspec == other._signal_strength_unspec;
         }
 
-        [[nodiscard]] inline auto operator!=(const WlanNetwork& other) const noexcept -> bool {
+        [[nodiscard]] inline auto operator!=(const WifiBand& other) const noexcept -> bool {
+            return !(*this == other);
+        }
+    };
+
+    class WifiNetwork final {
+        Option<std::string> _ssid;
+        std::vector<WifiBand> _bands;
+
+        public:
+        friend struct std::hash<WifiNetwork>;
+        friend auto enumerate_wlan_networks(const NetworkInterface& interface) noexcept
+                -> Result<std::unordered_set<WifiNetwork>>;
+
+        inline WifiNetwork(const Option<std::string> ssid, const std::vector<WifiBand> bands) noexcept :
+                _ssid {std::move(ssid)},
+                _bands {std::move(bands)} {
+        }
+
+        KSTD_DEFAULT_MOVE_COPY(WifiNetwork, WifiNetwork, inline)
+        ~WifiNetwork() noexcept = default;
+
+        [[nodiscard]] inline auto get_ssid() const noexcept -> const Option<std::string>& {
+            return _ssid;
+        }
+
+        [[nodiscard]] inline auto get_bands() const noexcept -> const std::vector<WifiBand>& {
+            return _bands;
+        }
+
+        [[nodiscard]] inline auto operator==(const WifiNetwork& other) const noexcept -> bool {
+            return _ssid == other._ssid && _bands == other._bands;
+        }
+
+        [[nodiscard]] inline auto operator!=(const WifiNetwork& other) const noexcept -> bool {
             return !(*this == other);
         }
     };
 
     // clang-format off
-    [[nodiscard]] auto enumerate_wlan_networks(const NetworkInterface& interface) noexcept -> Result<std::unordered_set<WlanNetwork>>;
+    [[nodiscard]] auto enumerate_wlan_networks(const NetworkInterface& interface) noexcept -> Result<std::unordered_set<WifiNetwork>>;
     // clang-format on
 }// namespace kstd::platform
 
-KSTD_DEFAULT_HASH((kstd::platform::WlanNetwork), value._ssid)
+KSTD_DEFAULT_HASH((kstd::platform::WifiBand), value._frequency, value._signal_strength_unspec, value._signal_strength)
+KSTD_HASH((kstd::platform::WifiNetwork), [&]() {
+    auto result = kstd::hash(value._ssid);
+    kstd::combined_hash_into(result, kstd::hash_range(value._bands.cbegin(), value._bands.cend()));
+    return result;
+}())
