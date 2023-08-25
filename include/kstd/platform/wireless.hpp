@@ -24,9 +24,7 @@
 #include <kstd/result.hpp>
 #include <unordered_set>
 
-#ifdef PLATFORM_WINDOWS
-#include <wlanapi.h>
-#else
+#ifndef PLATFORM_WINDOWS
 #include <libnl3/netlink/attr.h>
 #include <libnl3/netlink/errno.h>
 #include <libnl3/netlink/genl/ctrl.h>
@@ -39,6 +37,7 @@
 #endif
 
 #include "kstd/platform/network.hpp"
+#undef interface
 
 namespace kstd::platform {
 #ifdef PLATFORM_LINUX
@@ -53,14 +52,14 @@ namespace kstd::platform {
         std::string _mac_address;
         Option<std::string> _ssid;
         usize _frequency;
-        u8 _signal_strength;
+        usize _signal_strength;
         bool _signal_strength_unspec;
 
         public:
         friend struct std::hash<WlanNetwork>;
 
         inline WlanNetwork(const std::string mac_address, const Option<std::string> ssid, const usize frequency,
-                           const u8 signal_strength, const bool signal_strength_unspec) noexcept :
+                           const usize signal_strength, const bool signal_strength_unspec) noexcept :
                 _mac_address {mac_address},
                 _ssid {std::move(ssid)},
                 _frequency {frequency},
@@ -83,7 +82,7 @@ namespace kstd::platform {
             return _frequency;
         }
 
-        [[nodiscard]] inline auto get_signal_strength() const noexcept -> u8 {
+        [[nodiscard]] inline auto get_signal_strength() const noexcept -> usize {
             return _signal_strength;
         }
 
@@ -92,7 +91,7 @@ namespace kstd::platform {
         }
 
         [[nodiscard]] inline auto operator==(const WlanNetwork& other) const noexcept -> bool {
-            return _ssid == other._ssid;
+            return _ssid == other._ssid && _mac_address == other._mac_address;
         }
 
         [[nodiscard]] inline auto operator!=(const WlanNetwork& other) const noexcept -> bool {

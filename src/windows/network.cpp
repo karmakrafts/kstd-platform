@@ -85,22 +85,6 @@ namespace kstd::platform {
             return Error {get_last_error()};
         }
 
-        // Open Windows WLAN client handle
-        auto const wlan_flag_set = (flags & InterfaceInfoFlags::WIRELESS) == InterfaceInfoFlags::WIRELESS;
-
-        HANDLE wlan_client_handle = nullptr;
-        DWORD client_version = 2;
-        DWORD current_version = 0;
-        if(wlan_flag_set && FAILED(WlanOpenHandle(client_version, nullptr, &current_version, &wlan_client_handle))) {
-            return Error {get_last_error()};
-        }
-
-        // Enumerate WLAN interfaces
-        PWLAN_INTERFACE_INFO_LIST wlan_interface_list = nullptr;
-        if(wlan_flag_set && FAILED(WlanEnumInterfaces(wlan_client_handle, nullptr, &wlan_interface_list))) {
-            return Error {get_last_error()};
-        }
-
         // Construct interface vector
         std::unordered_set<NetworkInterface> interfaces {};
         for(const auto row : Slice {static_cast<PMIB_IFROW>(table->table), table->dwNumEntries * sizeof(MIB_IFROW)}) {
@@ -130,6 +114,7 @@ namespace kstd::platform {
                             if(!addr) {
                                 break;
                             }
+
 
                             address = *addr;
                             break;
@@ -182,12 +167,7 @@ namespace kstd::platform {
                 speed = {};
             }
 
-            interfaces.insert({name, desc, std::move(if_addrs), speed, type, row.dwMtu});
-        }
-
-        // Close handle for WLAN client, if handle is valid
-        if(wlan_client_handle != nullptr) {
-            CloseHandle(wlan_client_handle);
+            interfaces.insert({row.dwIndex, name, desc, std::move(if_addrs), speed, type, row.dwMtu});
         }
 
         // Free information and return interfaces

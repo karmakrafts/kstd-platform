@@ -55,11 +55,11 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
                 }
                 std::cout << "     - Frequency: " << network.get_frequency() << " MHz\n";
 
-                std::cout << "     - Signal Strength: " << static_cast<kstd::usize>(network.get_signal_strength());
+                std::cout << "     - Signal Strength: " << network.get_signal_strength();
                 if (network.is_signal_strength_unit_unspecified()) {
-                    std::cout << " mBm\n";
-                } else {
                     std::cout << " units\n";
+                } else {
+                    std::cout << " dBm\n";
                 }
             }
         }
