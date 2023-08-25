@@ -20,12 +20,9 @@
 #ifdef PLATFORM_LINUX
 
 #include "kstd/platform/network.hpp"
-#include "kstd/platform/platform.hpp"
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <kstd/safe_alloc.hpp>
-#include <linux/wireless.h>
 
 #define INT_FILE_CAST_FUNCTOR(t)                                                                                       \
     [](auto value) noexcept -> auto {                                                                                  \
@@ -63,24 +60,8 @@ namespace kstd::platform {
         }
     }
 
-    inline auto open_socket() -> Result<usize> {
-        using namespace std::string_literals;
-
-        static const std::array<usize, 4> families = {AF_INET, AF_IPX, AF_AX25, AF_APPLETALK};
-
-        isize socket_descriptor = -1;
-        for(usize family : families) {
-            socket_descriptor = socket(static_cast<int>(family), SOCK_DGRAM, 0);
-            if(socket_descriptor >= 0) {
-                return socket_descriptor;
-            }
-        }
-
-        return Error {"Unable to open socket"s};
-    }
-
-    auto enumerate_interfaces(const InterfaceInfoFlags flags) noexcept
-            -> Result<std::unordered_set<NetworkInterface>> {// NOLINT
+    auto enumerate_interfaces(const InterfaceInfoFlags flags) noexcept// NOLINT
+            -> Result<std::unordered_set<NetworkInterface>> {
         NativeInterfaceAddress* addresses = nullptr;
         if(::getifaddrs(&addresses) < 0) {
             return Error {get_last_error()};
@@ -154,7 +135,8 @@ namespace kstd::platform {
 
                 // Add address to original interface if there is one. If not, add the address to the addrs set
                 if(original_interface.has_value()) {
-                    original_interface->_addresses.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
+                    original_interface->_addresses.insert(
+                            InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
                 }
                 else {
                     addrs.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
@@ -176,43 +158,29 @@ namespace kstd::platform {
 
                 // clang-format off
                 // Interface Speed
-                const auto speed = read_file(if_path / "speed").map(INT_FILE_CAST_FUNCTOR(usize));
+                auto speed = read_file(if_path / "speed").map(INT_FILE_CAST_FUNCTOR(usize));
+                if (speed.has_value() && *speed == std::numeric_limits<usize>::max()) {
+                    speed = {};
+                }
 
                 // Get type
                 auto type = read_file(if_path / "type").map(INT_FILE_CAST_FUNCTOR(InterfaceType))
                     .get_or(InterfaceType::UNKNOWN);
                 // clang-format on
 
-                // Detect if interface has installed IEEE 802.11 extensions
+                // Detect if interface has installed IEEE 802.11 extensions. If yes, collect all information with
+                // syscalls
                 iwreq request {};
-                Option<WirelessInformation> wireless_information {};
                 libc::copy_string(static_cast<char*>(request.ifr_ifrn.ifrn_name), description);// NOLINT
-                if(sys::ioctl(static_cast<int>(*socket_descriptor), SIOCGIWNAME, &request) >= 0) {
+                if(sys::ioctl(static_cast<NativeFileHandle>(*socket_descriptor), SIOCGIWNAME, &request) >= 0) {
                     type = InterfaceType::WIRELESS;
-
-                    // Query information about Wireless network and connection if flags are set
-                    if ((flags & InterfaceInfoFlags::WIRELESS) == InterfaceInfoFlags::WIRELESS) {
-                        // Get the ESSID of the WLAN network
-                        std::array<char, IW_ESSID_MAX_SIZE + 1> essid_buffer {'\0'};
-                        request.u.essid.length = IW_ESSID_MAX_SIZE + 1;// NOLINT
-                        request.u.essid.pointer = essid_buffer.data();
-                        if(sys::ioctl(static_cast<int>(*socket_descriptor), SIOCGIWESSID, &request) < 0) {
-                            return kstd::Error {fmt::format("Unable to collect wireless information of {} => {}",
-                                                            description, get_last_error())};
-                        }
-                        auto essid = std::string {essid_buffer.cbegin(), essid_buffer.cend()};
-                        essid.resize(libc::get_string_length(essid.c_str()));
-
-                        // Construct the wireless information
-                        wireless_information = WirelessInformation {essid};
-                    }
                 }
 
                 // Get MTU
                 const usize mtu = read_file(if_path / "mtu").map(INT_FILE_CAST_FUNCTOR(usize)).get_or(0);
 
                 // Push new interface
-                interfaces.emplace_back(if_path, description, std::move(addrs), wireless_information, speed, type, mtu);
+                interfaces.emplace_back(if_path, description, std::move(addrs), speed, type, mtu);
             }
         }
 

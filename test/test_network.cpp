@@ -17,7 +17,8 @@
  * @since 17/08/2023
  */
 
-#include "kstd/platform/network.hpp"
+#include <kstd/platform/network.hpp>
+#include <kstd/platform/wireless.hpp>
 #include <gtest/gtest.h>
 #include <iostream>
 
@@ -27,7 +28,7 @@
 TEST(kstd_platform_Network, test_enumerate_interfaces) {
     using namespace kstd::platform;
     
-    const auto result = enumerate_interfaces(InterfaceInfoFlags::WIRELESS);
+    const auto result = enumerate_interfaces();
     ASSERT_NO_THROW(result.throw_if_error());// NOLINT
 
     for(const auto& interface : *result) {
@@ -40,12 +41,13 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
             std::cout << " - Speed: " << *interface.get_link_speed() << '\n';
         }
 
-        const auto wireless_information = interface.get_wireless_information();
-        if (wireless_information.has_value()) {
-            std::cout << " - Wireless information:\n";
-            std::cout << "   - WLAN Network Name: " << wireless_information->get_network_name() << '\n';
+        // Get available WLAN networks
+        if (interface.get_type() == InterfaceType::WIRELESS) {
+            const auto available_networks = enumerate_wlan_networks(interface);
+            ASSERT_NO_THROW(available_networks.throw_if_error());
         }
 
+        // Get all addresses
         if(!interface.get_addresses().empty()) {
             std::cout << " - Addresses:\n";
         }

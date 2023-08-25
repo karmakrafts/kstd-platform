@@ -30,17 +30,35 @@
 #ifdef PLATFORM_WINDOWS
 #include <Winsock2.h>
 #include <iphlpapi.h>
-#include <wlanapi.h>
 #else
-
+#include "platform.hpp"
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <linux/if_packet.h>
-#include <net/if.h>
 
+#include <linux/wireless.h>
 #endif
 
 namespace kstd::platform {
+#ifdef PLATFORM_UNIX
+    namespace {
+        [[nodiscard]] inline auto open_socket() noexcept -> Result<NativeSocketHandle> {
+            using namespace std::string_literals;
+
+            static const std::array<usize, 4> families = {AF_INET, AF_IPX, AF_AX25, AF_APPLETALK};
+
+            isize socket_descriptor;// NOLINT
+            for(usize family : families) {
+                socket_descriptor = socket(static_cast<int>(family), SOCK_DGRAM, 0);
+                if(socket_descriptor >= 0) {
+                    return static_cast<NativeSocketHandle>(socket_descriptor);
+                }
+            }
+
+            return Error {"Unable to open socket"s};
+        }
+    }
+#endif
 
     enum class AddressFamily : u8 {
         IPv4 = AF_INET,
@@ -81,33 +99,7 @@ namespace kstd::platform {
         UNKNOWN = 65535
     };
 
-    KSTD_BITFLAGS(u8, InterfaceInfoFlags, WIRELESS = 0b0001, DHCP = 0b0010, DNS = 0b0100)// NOLINT
-
-    /**
-     * This class represents extra information about the interface, if the IEEE 802.11 extensions are enabled. This
-     * mostly contains information about information about the wireless network.
-     */
-    class WirelessInformation final {
-        std::string _network_name;
-
-        public:
-        inline WirelessInformation(std::string network_name) noexcept :
-                _network_name {std::move(network_name)} {
-        }
-
-        KSTD_DEFAULT_MOVE_COPY(WirelessInformation, WirelessInformation, inline)
-
-        ~WirelessInformation() noexcept = default;
-
-        /**
-         * This function returns the name of the WLAN network.
-         *
-         * @return The WLAN network name.
-         */
-        [[nodiscard]] [[maybe_unused]] auto get_network_name() const noexcept -> const std::string& {
-            return _network_name;
-        }
-    };
+    KSTD_BITFLAGS(u8, InterfaceInfoFlags, DHCP = 0b0010, DNS = 0b0100)// NOLINT
 
     /**
      * This class represents the information about single addresses that are assigned to the interface. This class contains
@@ -251,7 +243,6 @@ namespace kstd::platform {
      */
     class NetworkInterface final {
         std::unordered_set<InterfaceAddress> _addresses;
-        Option<WirelessInformation> _wireless_information;
         std::string _name;
         std::string _description;
         InterfaceType _type;
@@ -281,10 +272,9 @@ namespace kstd::platform {
          */
         inline NetworkInterface(std::string name, std::string description,
                                 std::unordered_set<InterfaceAddress> addresses,
-                                Option<WirelessInformation> wireless_information, Option<usize> link_speed,
+                                Option<usize> link_speed,
                                 InterfaceType type, usize mtu) noexcept :
                 _addresses {std::move(addresses)},
-                _wireless_information {std::move(wireless_information)},
                 _name {std::move(name)},
                 _description {std::move(description)},
                 _type {type},
@@ -393,15 +383,6 @@ namespace kstd::platform {
          */
         [[nodiscard]] auto get_addresses() const noexcept -> const std::unordered_set<InterfaceAddress>& {
             return _addresses;
-        }
-
-        /**
-         *
-         * @return
-         */
-        [[nodiscard]] [[maybe_unused]] auto get_wireless_information() const noexcept
-                -> const Option<WirelessInformation>& {
-            return _wireless_information;
         }
 
         /**

@@ -21,12 +21,32 @@ cmx_include_kstd_streams(kstd-platform-static PUBLIC)
 if (CMX_PLATFORM_UNIX)
     target_link_libraries(kstd-platform PUBLIC -lresolv)
     target_link_libraries(kstd-platform-static PUBLIC -lresolv)
-endif()
+endif ()
 
 if (CMX_PLATFORM_LINUX)
-    target_link_libraries(kstd-platform PUBLIC -ldl -lrt)
-    target_link_libraries(kstd-platform-static PUBLIC -ldl -lrt)
-endif ()
+    # Check if all needed libnl modules are installed on the build system
+    find_library(LIBNL_LIBRARY NAMES nl nl-3)
+    find_library(LIBNL_ROUTE_LIBRARY NAMES nl-route nl-route-3)
+    find_library(LIBNL_GENL_LIBRARY NAMES nl-genl nl-genl-3)
+    if (NOT LIBNL_LIBRARY OR NOT LIBNL_ROUTE_LIBRARY OR NOT LIBNL_GENL_LIBRARY)
+        message(FATAL_ERROR "There are missing some dependencies! Please run install_deps.sh!")
+    endif ()
+
+    # Find include path of libnl-3
+    find_path(LIBNL_INCLUDE_DIR "netlink/netlink.h"
+            "/usr/include"
+            "/usr/include/libnl3"
+            "/usr/local/include"
+            "/usr/local/include/libnl3")
+
+    # Include libnl include directories
+    target_include_directories(kstd-platform-static PUBLIC ${LIBNL_INCLUDE_DIR})
+    target_include_directories(kstd-platform-static PUBLIC ${LIBNL_INCLUDE_DIR})
+
+    # Link libraries
+    target_link_libraries(kstd-platform PUBLIC -ldl -lrt -lnl-3 -lnl-route-3 -lnl-nf-3 -lnl-genl-3)
+    target_link_libraries(kstd-platform-static PUBLIC -ldl -lrt -lnl-3 -lnl-route-3 -lnl-nf-3 -lnl-genl-3)
+endif()
 
 # Tests
 if (KSTD_PLATFORM_BUILD_TESTS)

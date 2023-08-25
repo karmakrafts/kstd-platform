@@ -162,60 +162,6 @@ namespace kstd::platform {
 
             const auto type = static_cast<InterfaceType>(row.dwType);
 
-            // Query information about Wireless network and connection if flags are set
-            Option<WirelessInformation> wireless_information {};
-            if(wlan_flag_set && type == InterfaceType::WIRELESS) {
-                // TODO: Add wireless information if interface is wireless
-                // https://learn.microsoft.com/de-de/windows/win32/api/wlanapi/nf-wlanapi-wlangetavailablenetworklist
-
-                for(int i = 0; i < wlan_interface_list->dwNumberOfItems; ++i) {
-                    if (wireless_information.has_value()) {
-                        break;
-                    }
-
-                    PWLAN_INTERFACE_INFO wlan_info = &wlan_interface_list->InterfaceInfo[i];// NOLINT
-
-                    // Get all available WLAN networks
-                    PWLAN_AVAILABLE_NETWORK_LIST available_network_list = nullptr;
-                    if(FAILED(WlanGetAvailableNetworkList(wlan_client_handle, &wlan_info->InterfaceGuid, 0, nullptr,
-                                                          &available_network_list))) {
-                        return Error {fmt::format("Unable to enumerate available networks for {} => {}", desc,
-                                                  get_last_error())};
-                    }
-
-                    // Enumerate all available WLAN networks
-                    for(int j = 0; j < available_network_list->dwNumberOfItems; ++j) {
-                        PWLAN_AVAILABLE_NETWORK available_network = &available_network_list->Network[j];// NOLINT
-
-                        // Check if device is currently connected to device
-                        if((available_network->dwFlags & WLAN_AVAILABLE_NETWORK_CONNECTED) ==
-                           WLAN_AVAILABLE_NETWORK_CONNECTED) {
-                            // Get SSID of network
-                            const auto ssid_length = available_network->dot11Ssid.uSSIDLength;
-                            std::string ssid(ssid_length + 1, '\0');
-                            if(ssid_length == 0) {
-                                ssid = "Hidden Network";
-                            }
-                            else {
-                                libc::memcpy(ssid.data(),
-                                             reinterpret_cast<const char*>(available_network->dot11Ssid.ucSSID),// NOLINT
-                                             ssid_length);
-                                ssid.resize(libc::get_string_length(ssid.c_str()));
-                            }
-
-                            // Insert wireless information
-                            wireless_information = {ssid};
-                            break;
-                        }
-                    }
-
-                    // Cleanup available WLAN network list
-                    if(available_network_list != nullptr) {
-                        WlanFreeMemory(available_network_list);
-                    }
-                }
-            }
-
             // Add MAC address to addresses
             auto const phys_addr_len = row.dwPhysAddrLen;
             std::string mac_address = phys_addr_len > 0 ? "" : "00:00:00:00:00:00";
@@ -236,12 +182,7 @@ namespace kstd::platform {
                 speed = {};
             }
 
-            interfaces.insert({name, desc, std::move(if_addrs), wireless_information, speed, type, row.dwMtu});
-        }
-
-        // Free wlan interface list in memory
-        if(wlan_interface_list != nullptr) {
-            WlanFreeMemory(wlan_interface_list);
+            interfaces.insert({name, desc, std::move(if_addrs), speed, type, row.dwMtu});
         }
 
         // Close handle for WLAN client, if handle is valid
