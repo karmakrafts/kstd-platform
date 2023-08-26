@@ -62,26 +62,25 @@ namespace kstd::platform {
         }
 
         // Allocate adapter addresses holder and get address information
-        auto* adapter_addresses = static_cast<PIP_ADAPTER_ADDRESSES>(libc::malloc(adapter_addresses_size));// NOLINT
-        if(FAILED(::GetAdaptersAddresses(AF_UNSPEC, adapter_addrs_flags, nullptr, adapter_addresses,
+
+        auto adapter_addrs = std::unique_ptr<IP_ADAPTER_ADDRESSES, libc::FreeDeleter> {
+                static_cast<PIP_ADAPTER_ADDRESSES>(libc::malloc(adapter_addresses_size))};// NOLINT
+        if(FAILED(::GetAdaptersAddresses(AF_UNSPEC, adapter_addrs_flags, nullptr, adapter_addrs.get(),
                                          reinterpret_cast<PULONG>(&adapter_addresses_size)))) {// NOLINT
-            libc::free(adapter_addresses);                                                     // NOLINT
             return Error {get_last_error()};
         }
 
         // Determine size of MIB Interface table
         usize mib_if_size = 0;
         if(::GetIfTable(nullptr, reinterpret_cast<PULONG>(&mib_if_size), FALSE) != ERROR_INSUFFICIENT_BUFFER) {// NOLINT
-            libc::free(adapter_addresses);                                                                     // NOLINT
             return Error {"Unable to allocate interface table: Unable to determine size of buffer"s};
         }
 
         // Allocate table and get interface table
-        auto* table = static_cast<MIB_IFTABLE*>(libc::malloc(mib_if_size));             // NOLINT
-        if(FAILED(::GetIfTable(table, reinterpret_cast<PULONG>(&mib_if_size), FALSE))) {// NOLINT
-            // Free information and return error
-            libc::free(table);            // NOLINT
-            libc::free(adapter_addresses);// NOLINT
+        auto table = std::unique_ptr<MIB_IFTABLE, libc::FreeDeleter> {
+                static_cast<PMIB_IFTABLE>(libc::malloc(mib_if_size))};                        // NOLINT
+        if(FAILED(::GetIfTable(table.get(), reinterpret_cast<PULONG>(&mib_if_size), FALSE))) {// NOLINT
+            // Return error
             return Error {get_last_error()};
         }
 
@@ -94,7 +93,7 @@ namespace kstd::platform {
 
             // Enumerate over adapter addresses information and save the correct data
             auto addresses =
-                    streams::stream(adapter_addresses, KSTD_PTR_FIELD_FUNCTOR(Next)).find_first([&](auto& addr) {
+                    streams::stream(adapter_addrs.get(), KSTD_PTR_FIELD_FUNCTOR(Next)).find_first([&](auto& addr) {
                         return name.find(addr.AdapterName) != std::string::npos;
                     });
 
@@ -150,7 +149,6 @@ namespace kstd::platform {
                 streams::stream(addresses->FirstGatewayAddress, KSTD_PTR_FIELD_FUNCTOR(Next))
                         .map(map_function)
                         .collect_into(gateway_addresses, streams::collectors::insert);
-
             }
 
             const auto type = static_cast<InterfaceType>(row.dwType);
@@ -180,9 +178,7 @@ namespace kstd::platform {
                                row.dwMtu});
         }
 
-        // Free information and return interfaces
-        libc::free(table);            // NOLINT
-        libc::free(adapter_addresses);// NOLINT
+        // Return interfaces
         return interfaces;
     }
 
