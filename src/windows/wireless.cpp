@@ -17,11 +17,14 @@
 #include "kstd/platform/wireless.hpp"
 #include <wlanapi.h>
 
-#undef interface ^
+#undef interface
+
+KSTD_DEFAULT_DELETER(HandleDeleter, CloseHandle)
+KSTD_DEFAULT_DELETER(WlanDeleter, WlanFreeMemory)
 
 namespace kstd::platform {
 
-    auto enumerate_wlan_networks(const NetworkInterface& interface) noexcept
+    auto enumerate_wlan_networks(const NetworkInterface& interface) noexcept// NOLINT
             -> Result<std::unordered_set<WifiNetwork>> {
         using namespace std::string_literals;
         // Cancel the function if the type of the interface is not wireless
@@ -31,16 +34,28 @@ namespace kstd::platform {
         }
 
         // Open WLAN handle
-        HANDLE client_handle = nullptr;
-        DWORD current_version = 0;
-        if(FAILED(WlanOpenHandle(2, nullptr, &current_version, &client_handle))) {
+        const auto wlan_handle = std::unique_ptr<void, HandleDeleter> {[]() noexcept -> HANDLE {
+            HANDLE client_handle = nullptr;
+            DWORD current_version = 0;
+            if(FAILED(WlanOpenHandle(2, nullptr, &current_version, &client_handle))) {
+                return nullptr;
+            }
+            return client_handle;
+        }()};
+        if(wlan_handle == nullptr) {
             return Error {"Unable to enumerate Wi-Fi networks: Unable to open handle for Windows WLAN API"s};
         }
 
-        // Get a list of all WLAN-capable interfaces
-        PWLAN_INTERFACE_INFO_LIST interface_list = nullptr;
-        if(FAILED(WlanEnumInterfaces(client_handle, nullptr, &interface_list))) {
-            return Error {"Unable to enumerate Wi-Fi networks: Unable to get a list of all WLAN-capable interfaces"s};
+        const auto interface_list =
+                std::unique_ptr<WLAN_INTERFACE_INFO_LIST, WlanDeleter> {[&]() noexcept -> PWLAN_INTERFACE_INFO_LIST {
+                    PWLAN_INTERFACE_INFO_LIST interface_list = nullptr;
+                    if(FAILED(WlanEnumInterfaces(wlan_handle.get(), nullptr, &interface_list))) {
+                        return nullptr;
+                    }
+                    return interface_list;
+                }()};
+        if (interface_list == nullptr) {
+            return Error {"Unable to enumerate Wi-Fi networks: Unable to get a list ogf all WLAN-capable interfaces"s};
         }
 
         // Enumerate interfaces and get information from the right interface
@@ -53,9 +68,16 @@ namespace kstd::platform {
             }
 
             // Get available Wi-Fi networks by interface
-            PWLAN_AVAILABLE_NETWORK_LIST wlan_networks = nullptr;
-            if(FAILED(WlanGetAvailableNetworkList(client_handle, &wlan_info->InterfaceGuid, 0, nullptr,
-                                                  &wlan_networks))) {
+            const auto wlan_networks = std::unique_ptr<WLAN_AVAILABLE_NETWORK_LIST, WlanDeleter> {
+                    [&]() noexcept -> PWLAN_AVAILABLE_NETWORK_LIST {
+                        PWLAN_AVAILABLE_NETWORK_LIST wlan_networks = nullptr;
+                        if(FAILED(WlanGetAvailableNetworkList(wlan_handle.get(), &wlan_info->InterfaceGuid, 0, nullptr,
+                                                              &wlan_networks))) {
+                            return nullptr;
+                        }
+                        return wlan_networks;
+                    }()};
+            if(wlan_networks == nullptr) {
                 return Error {"Unable to enumerate Wi-Fi networks: Unable to get list of available Wi-Fi networks"s};
             }
 
@@ -73,10 +95,16 @@ namespace kstd::platform {
                 }
 
                 // Get BSS list
-                PWLAN_BSS_LIST bss_list = nullptr;
-                if(FAILED(WlanGetNetworkBssList(client_handle, &wlan_info->InterfaceGuid, &wlan_network->dot11Ssid,
-                                                wlan_network->dot11BssType, wlan_network->bSecurityEnabled, nullptr,
-                                                &bss_list))) {
+                const auto bss_list = std::unique_ptr<WLAN_BSS_LIST, WlanDeleter> {[&]() noexcept -> PWLAN_BSS_LIST {
+                    PWLAN_BSS_LIST bss_list = nullptr;
+                    if(FAILED(WlanGetNetworkBssList(wlan_handle.get(), &wlan_info->InterfaceGuid, &wlan_network->dot11Ssid,
+                                                    wlan_network->dot11BssType, wlan_network->bSecurityEnabled, nullptr,
+                                                    &bss_list))) {
+                        return nullptr;
+                    }
+                    return bss_list;
+                }()};
+                if(bss_list == nullptr) {
 
                     const auto ssid_name = ssid.get_or("Hidden Network");
                     return Error {
@@ -99,17 +127,12 @@ namespace kstd::platform {
                 available_networks.insert({ssid,
                                            {{mac_addr, first_bss_entry.ulChCenterFrequency / 1000,
                                              wlan_network->wlanSignalQuality, false}}});
-                WlanFreeMemory(bss_list);
             }
-
-            WlanFreeMemory(wlan_networks);
             break;
         }
 
-        // Cleanup
-        WlanFreeMemory(interface_list);
-        CloseHandle(client_handle);
-        return {available_networks};
+        // Return networks
+        return available_networks;
     }
 
 

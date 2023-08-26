@@ -62,11 +62,17 @@ namespace kstd::platform {
         }
 
         // Allocate adapter addresses holder and get address information
-
-        auto adapter_addrs = std::unique_ptr<IP_ADAPTER_ADDRESSES, libc::FreeDeleter> {
-                static_cast<PIP_ADAPTER_ADDRESSES>(libc::malloc(adapter_addresses_size))};// NOLINT
-        if(FAILED(::GetAdaptersAddresses(AF_UNSPEC, adapter_addrs_flags, nullptr, adapter_addrs.get(),
-                                         reinterpret_cast<PULONG>(&adapter_addresses_size)))) {// NOLINT
+        const auto adapter_addrs =
+                std::unique_ptr<IP_ADAPTER_ADDRESSES, libc::FreeDeleter> {[&]() noexcept -> PIP_ADAPTER_ADDRESSES {
+                    auto* adapter_addresses =
+                            static_cast<PIP_ADAPTER_ADDRESSES>(libc::malloc(adapter_addresses_size));// NOLINT
+                    if(FAILED(::GetAdaptersAddresses(AF_UNSPEC, adapter_addrs_flags, nullptr, adapter_addresses,
+                                                     reinterpret_cast<PULONG>(&adapter_addresses_size)))) {// NOLINT
+                        return nullptr;
+                    }
+                    return adapter_addresses;
+                }()};
+        if(adapter_addrs == nullptr) {
             return Error {get_last_error()};
         }
 
@@ -77,10 +83,14 @@ namespace kstd::platform {
         }
 
         // Allocate table and get interface table
-        auto table = std::unique_ptr<MIB_IFTABLE, libc::FreeDeleter> {
-                static_cast<PMIB_IFTABLE>(libc::malloc(mib_if_size))};                        // NOLINT
-        if(FAILED(::GetIfTable(table.get(), reinterpret_cast<PULONG>(&mib_if_size), FALSE))) {// NOLINT
-            // Return error
+        const auto table = std::unique_ptr<MIB_IFTABLE, libc::FreeDeleter> {[&]() noexcept -> PMIB_IFTABLE {
+            auto* if_table = static_cast<PMIB_IFTABLE>(libc::malloc(mib_if_size));             // NOLINT
+            if(FAILED(::GetIfTable(if_table, reinterpret_cast<PULONG>(&mib_if_size), FALSE))) {// NOLINT
+                return nullptr;
+            }
+            return if_table;
+        }()};
+        if(table == nullptr) {
             return Error {get_last_error()};
         }
 
