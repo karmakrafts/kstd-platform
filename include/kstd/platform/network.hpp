@@ -42,6 +42,13 @@
 namespace kstd::platform {
 #ifdef PLATFORM_UNIX
     namespace {
+        namespace nl {
+            KSTD_DEFAULT_DELETER(SocketDeleter, nl_socket_free)
+            KSTD_DEFAULT_DELETER(CacheDeleter, nl_cache_free)
+            KSTD_DEFAULT_DELETER(NextHopDeleter, rtnl_route_nh_free)
+            KSTD_DEFAULT_DELETER(AddressDeleter, nl_addr_put)
+        }// namespace nl
+
         [[nodiscard]] inline auto open_socket() noexcept -> Result<NativeSocketHandle> {
             using namespace std::string_literals;
 
@@ -106,7 +113,7 @@ namespace kstd::platform {
      * the address as a optional literal string, the address family and the routing schema.
      */
     class InterfaceAddress final {
-        Option<std::string> _address;
+        std::string _address;
         AddressFamily _family;
         RoutingScheme _routing_scheme;
 
@@ -123,7 +130,7 @@ namespace kstd::platform {
          * @param family         The address family
          * @param routing_scheme The routing scheme
          */
-        inline InterfaceAddress(Option<std::string> address, AddressFamily family,
+        inline InterfaceAddress(std::string address, AddressFamily family,
                                 RoutingScheme routing_scheme) noexcept :
                 _address {std::move(address)},
                 _family {family},
@@ -139,7 +146,7 @@ namespace kstd::platform {
          *
          * @return The literal address as optional string
          */
-        [[nodiscard]] inline auto get_address() const noexcept -> const Option<std::string>& {
+        [[nodiscard]] inline auto get_address() const noexcept -> const std::string& {
             return _address;
         }
 
@@ -243,6 +250,7 @@ namespace kstd::platform {
      */
     class NetworkInterface final {
         std::unordered_set<InterfaceAddress> _addresses;
+        std::unordered_set<InterfaceAddress> _gateway_addresses;
         std::string _name;
         std::string _description;
         InterfaceType _type;
@@ -272,9 +280,11 @@ namespace kstd::platform {
          * @since                      18/08/2023
          */
         inline NetworkInterface(usize if_index, std::string name, std::string description,
-                                std::unordered_set<InterfaceAddress> addresses, Option<usize> link_speed,
+                                std::unordered_set<InterfaceAddress> addresses,
+                                std::unordered_set<InterfaceAddress> gateway_addresses, Option<usize> link_speed,
                                 InterfaceType type, usize mtu) noexcept :
                 _addresses {std::move(addresses)},
+                _gateway_addresses {std::move(gateway_addresses)},
                 _name {std::move(name)},
                 _description {std::move(description)},
                 _type {type},
@@ -316,7 +326,7 @@ namespace kstd::platform {
             // clang-format off
             return streams::stream(_addresses).find_first([](auto &address) {
                 return address._family == AddressFamily::MAC;
-            })->_address.get();
+            })->_address;
             // clang-format on
         }
 
@@ -383,6 +393,16 @@ namespace kstd::platform {
          */
         [[nodiscard]] auto get_description() const noexcept -> const std::string& {
             return _description;
+        }
+
+        /**
+         * This function return a reference to the const set of all gateway addresses of the interface. Every address
+         * structure contains the address family and the address itself.
+         *
+         * @return A reference to the gateway address set
+         */
+        [[nodiscard]] auto get_gateway_addresses() const noexcept -> const std::unordered_set<InterfaceAddress>& {
+            return _gateway_addresses;
         }
 
         /**

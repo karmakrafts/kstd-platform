@@ -20,6 +20,9 @@
 #include <kstd/platform/network.hpp>
 #include <kstd/platform/wireless.hpp>
 #include <gtest/gtest.h>
+#ifdef PLATFORM_LINUX
+#include <unistd.h>
+#endif
 #include <iostream>
 
 // Thanks microsoft for these definitions
@@ -38,12 +41,19 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
         std::cout << " - MTU: " << interface.get_mtu() << '\n';
         std::cout << " - MAC Address: " << interface.get_mac_address() << '\n';
         std::cout << " - Type: " << get_interface_type_name(interface.get_type()) << '\n';
-        if(interface.get_link_speed().has_value()) {
+        if(interface.get_link_speed()) {
             std::cout << " - Speed: " << *interface.get_link_speed() << '\n';
         }
 
+#ifdef PLATFORM_LINUX
+        bool is_privileged = getuid() == 0;
+#else
+        bool is_privileged = true;
+#endif
+
         // Get available WLAN networks
-        if (interface.get_type() == InterfaceType::WIRELESS) {
+        if (interface.get_type() == InterfaceType::WIRELESS && is_privileged) {
+
             const auto available_networks = enumerate_wlan_networks(interface);
             ASSERT_NO_THROW(available_networks.throw_if_error());
 
@@ -71,15 +81,21 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
         }
 
         // Get all addresses
+        if (!interface.get_gateway_addresses().empty()) {
+            std::cout << " - Gateway Addresses:\n";
+        }
+
+        for(const auto& address : interface.get_gateway_addresses()) {
+            std::cout << "   - " << address.get_address() << ' ' << "(" << get_address_family_name(address.get_family()) << ")\n";
+        }
+
         if(!interface.get_addresses().empty()) {
             std::cout << " - Addresses:\n";
         }
 
         for(const auto& address : interface.get_addresses()) {
             std::cout << "   - ";
-            if(address.get_address().has_value()) {
-                std::cout << *address.get_address() << ' ';
-            }
+            std::cout << address.get_address() << ' ';
             std::cout << "(" << get_address_family_name(address.get_family()) << '/'
                       << get_routing_scheme_name(address.get_routing_scheme()) << ")\n";
         }

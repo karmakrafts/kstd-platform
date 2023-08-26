@@ -187,7 +187,7 @@ namespace kstd::platform {
         }
 
         // Allocate socket
-        const auto socket = std::unique_ptr<nl_sock, nl::SocketDeleter<nl_sock>> {nl_socket_alloc()};
+        const auto socket = std::unique_ptr<nl_sock, nl::SocketDeleter> {nl_socket_alloc()};
 
         // Connect to nl80211 control channel
         if(genl_connect(socket.get()) != 0) {
@@ -214,7 +214,7 @@ namespace kstd::platform {
         }
 
         // Generate SSIDs to scan
-        const auto ssids_to_scan = std::unique_ptr<nl_msg, nl::MessageDeleter<nl_msg>> {nlmsg_alloc()};
+        const auto ssids_to_scan = std::unique_ptr<nl_msg, nl::MessageDeleter> {nlmsg_alloc()};
         if(ssids_to_scan == nullptr) {
             return Error {"Unable to enumerate Wi-Fi networks: Not enough memory to allocate message"s};
         }
@@ -223,7 +223,7 @@ namespace kstd::platform {
         const auto interface_index = interface.get_index();
 
         // Generate message for Wi-Fi network scan
-        const auto scan_message = std::unique_ptr<nl_msg, nl::MessageDeleter<nl_msg>> {nlmsg_alloc()};
+        const auto scan_message = std::unique_ptr<nl_msg, nl::MessageDeleter> {nlmsg_alloc()};
         if(scan_message == nullptr) {
             return Error {"Unable to enumerate Wi-Fi networks: Not enough memory to allocate message"s};
         }
@@ -236,7 +236,7 @@ namespace kstd::platform {
         // Allocate callback, result and error and configure the callback
         int error = 0;
         result.aborted = true;
-        auto callback = std::unique_ptr<nl_cb, nl::CallbackDeleter<nl_cb>> {nl_cb_alloc(NL_CB_DEFAULT)};
+        auto callback = std::unique_ptr<nl_cb, nl::CallbackDeleter> {nl_cb_alloc(NL_CB_DEFAULT)};
         if(nl_cb_set(callback.get(), NL_CB_VALID, NL_CB_CUSTOM, callback_handler, &result) < 0) {
             return Error {"Unable to enumerate Wi-Fi networks: Unable to set message callback valid"s};
         }
@@ -291,7 +291,7 @@ namespace kstd::platform {
         nl_socket_drop_membership(socket.get(), scan_group_id);
 
         std::unordered_set<WifiNetwork> raw_networks {};
-        const auto get_scan_message = std::unique_ptr<nl_msg, nl::MessageDeleter<nl_msg>> {nlmsg_alloc()};
+        const auto get_scan_message = std::unique_ptr<nl_msg, nl::MessageDeleter> {nlmsg_alloc()};
         genlmsg_put(get_scan_message.get(), 0, 0, family_id, 0, NLM_F_DUMP, NL80211_CMD_GET_SCAN, 0);
         nla_put_u32(get_scan_message.get(), NL80211_ATTR_IFINDEX, interface_index);
         nl_socket_modify_cb(socket.get(), NL_CB_VALID, NL_CB_CUSTOM, dump_callback, &raw_networks);

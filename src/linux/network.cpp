@@ -23,6 +23,14 @@
 #include <filesystem>
 #include <fstream>
 #include <kstd/safe_alloc.hpp>
+#include <iostream>
+
+#include <libnl3/netlink/addr.h>
+#include <libnl3/netlink/socket.h>
+#include <libnl3/netlink/netlink.h>
+#include <libnl3/netlink/cache.h>
+#include <libnl3/netlink/route/route.h>
+#include <libnl3/netlink/route/nexthop.h>
 
 #define INT_FILE_CAST_FUNCTOR(t)                                                                                       \
     [](auto value) noexcept -> auto {                                                                                  \
@@ -32,6 +40,12 @@
 namespace kstd::platform {
     using namespace std::string_literals;
     using NativeInterfaceAddress = struct ifaddrs;
+
+    struct GatewayAddress {
+        usize interface_index;
+        std::string address;
+        usize family;
+    };
 
     auto read_file(const std::filesystem::path& path) -> Option<std::string> {
         if(!std::filesystem::exists(path)) {
@@ -60,6 +74,38 @@ namespace kstd::platform {
         }
     }
 
+    void netlink_gateway_enum_callback(struct nl_object *object, void *arg) {
+        auto* route = reinterpret_cast<rtnl_route*>(object);// NOLINT
+
+        // Get next hop
+        auto* next_hop = rtnl_route_nexthop_n(route, 0);
+        if (next_hop == nullptr) {
+            return;
+        }
+
+        // Get gateway address if some address is found
+        auto gateway = std::unique_ptr<nl_addr, nl::AddressDeleter> {rtnl_route_nh_get_gateway(next_hop)};
+        if (gateway == nullptr) {
+            return;
+        }
+
+        std::array<char, INET6_ADDRSTRLEN> gateway_name_bytes {'\0'};
+        nl_addr2str(gateway.get(), gateway_name_bytes.data(), gateway_name_bytes.size());
+
+        auto gateway_address = std::string { gateway_name_bytes.data() };
+        gateway_address.resize(kstd::libc::get_string_length(gateway_address.c_str()));
+
+        // Get interface index
+        auto interface_index = rtnl_route_nh_get_ifindex(next_hop);
+        if (interface_index <= 0) {
+            return;
+        }
+
+        // Push gateway address into list
+        auto* gateway_addresses = static_cast<std::vector<GatewayAddress>*>(arg);
+        gateway_addresses->emplace_back(interface_index, gateway_address, static_cast<int>(rtnl_route_get_family(route)));
+    }
+
     auto enumerate_interfaces(const InterfaceInfoFlags flags) noexcept// NOLINT
             -> Result<std::unordered_set<NetworkInterface>> {
         NativeInterfaceAddress* addresses = nullptr;
@@ -72,6 +118,32 @@ namespace kstd::platform {
         if(!socket_descriptor) {
             return Error {socket_descriptor.get_error()};
         }
+
+        // Allocate socket for netlink communication and connect to Kernel
+        const auto netlink_socket = std::unique_ptr<nl_sock, nl::SocketDeleter> {nl_socket_alloc()};
+        if (netlink_socket == nullptr) {
+            return Error {"Unable to enumerate networks: Unable to allocate Netlink socket"s};
+        }
+
+        if (nl_connect(netlink_socket.get(), NETLINK_ROUTE) != 0) {
+            return Error {"Unable to enumerate networks: Unable to connect with Netlink socket"s};
+        }
+
+        // Allocate route cache
+        const auto cache = std::unique_ptr<nl_cache, nl::CacheDeleter> {[&]() noexcept -> nl_cache* {
+            nl_cache* cache = nullptr;
+            if (rtnl_route_alloc_cache(netlink_socket.get(), AF_UNSPEC, 0, &cache) != 0) {
+                return nullptr;
+            }
+            return cache;
+        }()};
+        if (cache == nullptr) {
+            return Error {"Unable to enumerate networks: Unable to allocate and receive routing table!"s};
+        }
+
+        // Enumerate route cache
+        std::vector<GatewayAddress> all_gateway_addresses {};
+        nl_cache_foreach(cache.get(), netlink_gateway_enum_callback, static_cast<void*>(&all_gateway_addresses));// NOLINT
 
         // Enumerate interfaces
         std::vector<NetworkInterface> interfaces {};
@@ -88,7 +160,7 @@ namespace kstd::platform {
             // Get address family of interface
             std::unordered_set<InterfaceAddress> addrs {};
             if(addr->ifa_addr != nullptr) {
-                Option<std::string> address {};
+                std::string address {'\0'};
                 const auto addr_family = addr->ifa_addr->sa_family;
 
                 // Format address to string
@@ -119,24 +191,21 @@ namespace kstd::platform {
                     }
                     default: break;
                 }
-                address->resize(libc::get_string_length(address->c_str()));
+                address.resize(libc::get_string_length(address.c_str()));
 
                 // TODO: Look into the routing table and check if the address is an Anycast address
                 // Check if routing scheme is Multicast or Unicast
                 auto routing_scheme = RoutingScheme::UNKNOWN;
-                if(address.has_value()) {
-                    if(is_multicast(addr_family, *address)) {
-                        routing_scheme = RoutingScheme::MULTICAST;
-                    }
-                    else {
-                        routing_scheme = RoutingScheme::UNICAST;
-                    }
+                if(is_multicast(addr_family, address)) {
+                    routing_scheme = RoutingScheme::MULTICAST;
+                }
+                else {
+                    routing_scheme = RoutingScheme::UNICAST;
                 }
 
                 // Add address to original interface if there is one. If not, add the address to the addrs set
                 if(original_interface.has_value()) {
-                    original_interface->_addresses.insert(
-                            InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
+                    original_interface->_addresses.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
                 }
                 else {
                     addrs.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
@@ -186,8 +255,17 @@ namespace kstd::platform {
                 // Get MTU
                 const usize mtu = read_file(if_path / "mtu").map(INT_FILE_CAST_FUNCTOR(usize)).get_or(0);
 
+                // Get gateway addresses
+                // clang-format off
+                auto gateway_addresses = streams::stream(all_gateway_addresses).filter([&](auto& addr) {
+                    return addr.interface_index == *index;
+                }).map([](auto& value) -> InterfaceAddress {
+                    return { value.address, static_cast<AddressFamily>(value.family), RoutingScheme::UNKNOWN };
+                }).collect<std::unordered_set>(streams::collectors::insert);
+                // clang-format off
+
                 // Push new interface
-                interfaces.emplace_back(*index, if_path, description, std::move(addrs), speed, type, mtu);
+                interfaces.emplace_back(*index, if_path, description, addrs, gateway_addresses, speed, type, mtu);
             }
         }
 

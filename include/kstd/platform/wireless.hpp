@@ -43,7 +43,6 @@
 namespace kstd::platform {
 #ifdef PLATFORM_LINUX
     namespace { namespace nl {
-        KSTD_DEFAULT_DELETER(SocketDeleter, nl_socket_free)
         KSTD_DEFAULT_DELETER(MessageDeleter, nlmsg_free)
         KSTD_DEFAULT_DELETER(CallbackDeleter, nl_cb_put)
     }}// namespace ::nl
