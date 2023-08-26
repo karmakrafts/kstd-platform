@@ -45,41 +45,6 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
             std::cout << " - Speed: " << *interface.get_link_speed() << '\n';
         }
 
-#ifdef PLATFORM_LINUX
-        bool is_privileged = getuid() == 0;
-#else
-        bool is_privileged = true;
-#endif
-
-        // Get available WLAN networks
-        if (interface.get_type() == InterfaceType::WIRELESS && is_privileged) {
-
-            const auto available_networks = enumerate_wlan_networks(interface);
-            ASSERT_NO_THROW(available_networks.throw_if_error());
-
-            std::cout << " - Available WLAN APs:\n";
-            for (const auto& network : *available_networks) {
-                if (network.get_ssid()) {
-                    std::cout << "     - SSID: " << *network.get_ssid() << '\n';
-                }
-
-                // Print out bands
-                std::cout << "     - Bands:\n";
-                const auto band_count = network.get_bands().size();
-                for (kstd::usize i = 0; i < band_count; ++i) {
-                    const auto& band = network.get_bands().at(i);
-                    std::cout << "        - #" << i << " (" << band.get_frequency() << " dBm)\n";
-                    std::cout << "           - MAC Address: " << band.get_mac_address() << '\n';
-                    std::cout << "           - Signal Strength: " << band.get_signal_strength();
-                    if (band.is_signal_strength_unit_unspecified()) {
-                        std::cout << " units\n";
-                    } else {
-                        std::cout << " dBm\n";
-                    }
-                }
-            }
-        }
-
         // Get all addresses
         if (!interface.get_gateway_addresses().empty()) {
             std::cout << " - Gateway Addresses:\n";
@@ -98,6 +63,52 @@ TEST(kstd_platform_Network, test_enumerate_interfaces) {
             std::cout << address.get_address() << ' ';
             std::cout << "(" << get_address_family_name(address.get_family()) << '/'
                       << get_routing_scheme_name(address.get_routing_scheme()) << ")\n";
+        }
+    }
+}
+
+TEST(kstd_platform_Network, test_enumerate_wlan_networks) {
+    using namespace kstd::platform;
+
+#ifdef PLATFORM_LINUX
+    if (getuid() != 0) {
+        return;
+    }
+#endif
+
+    // Get interfaces for Wi-Fi enumeration
+    const auto result = enumerate_interfaces();
+    ASSERT_NO_THROW(result.throw_if_error());
+
+    for (const auto& interface : *result) {
+        if (interface.get_type() != InterfaceType::WIRELESS) {
+            continue;
+        }
+
+        std::cout << interface.get_description() << '\n';
+        const auto available_networks = enumerate_wlan_networks(interface);
+        ASSERT_NO_THROW(available_networks.throw_if_error());
+
+        std::cout << " - Available WLAN APs:\n";
+        for (const auto& network : *available_networks) {
+            if (network.get_ssid()) {
+                std::cout << "     - SSID: " << *network.get_ssid() << '\n';
+            }
+
+            // Print out bands
+            std::cout << "     - Bands:\n";
+            const auto band_count = network.get_bands().size();
+            for (kstd::usize i = 0; i < band_count; ++i) {
+                const auto& band = network.get_bands().at(i);
+                std::cout << "        - #" << i << " (" << band.get_frequency() << " dBm)\n";
+                std::cout << "           - MAC Address: " << band.get_mac_address() << '\n';
+                std::cout << "           - Signal Strength: " << band.get_signal_strength();
+                if (band.is_signal_strength_unit_unspecified()) {
+                    std::cout << " units\n";
+                } else {
+                    std::cout << " dBm\n";
+                }
+            }
         }
     }
 }
