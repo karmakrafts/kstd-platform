@@ -22,15 +22,15 @@
 #include "kstd/platform/network.hpp"
 #include <filesystem>
 #include <fstream>
-#include <kstd/safe_alloc.hpp>
 #include <iostream>
+#include <kstd/safe_alloc.hpp>
 
 #include <libnl3/netlink/addr.h>
-#include <libnl3/netlink/socket.h>
-#include <libnl3/netlink/netlink.h>
 #include <libnl3/netlink/cache.h>
-#include <libnl3/netlink/route/route.h>
+#include <libnl3/netlink/netlink.h>
 #include <libnl3/netlink/route/nexthop.h>
+#include <libnl3/netlink/route/route.h>
+#include <libnl3/netlink/socket.h>
 
 #define INT_FILE_CAST_FUNCTOR(t)                                                                                       \
     [](auto value) noexcept -> auto {                                                                                  \
@@ -74,36 +74,37 @@ namespace kstd::platform {
         }
     }
 
-    void netlink_gateway_enum_callback(struct nl_object *object, void *arg) {
+    void netlink_gateway_enum_callback(struct nl_object* object, void* arg) {
         auto* route = reinterpret_cast<rtnl_route*>(object);// NOLINT
 
         // Get next hop
         auto* next_hop = rtnl_route_nexthop_n(route, 0);
-        if (next_hop == nullptr) {
+        if(next_hop == nullptr) {
             return;
         }
 
         // Get gateway address if some address is found
         auto gateway = std::unique_ptr<nl_addr, nl::AddressDeleter> {rtnl_route_nh_get_gateway(next_hop)};
-        if (gateway == nullptr) {
+        if(gateway == nullptr) {
             return;
         }
 
         std::array<char, INET6_ADDRSTRLEN> gateway_name_bytes {'\0'};
         nl_addr2str(gateway.get(), gateway_name_bytes.data(), gateway_name_bytes.size());
 
-        auto gateway_address = std::string { gateway_name_bytes.data() };
+        auto gateway_address = std::string {gateway_name_bytes.data()};
         gateway_address.resize(kstd::libc::get_string_length(gateway_address.c_str()));
 
         // Get interface index
         auto interface_index = rtnl_route_nh_get_ifindex(next_hop);
-        if (interface_index <= 0) {
+        if(interface_index <= 0) {
             return;
         }
 
         // Push gateway address into list
         auto* gateway_addresses = static_cast<std::vector<GatewayAddress>*>(arg);
-        gateway_addresses->emplace_back(interface_index, gateway_address, static_cast<int>(rtnl_route_get_family(route)));
+        gateway_addresses->emplace_back(interface_index, gateway_address,
+                                        static_cast<int>(rtnl_route_get_family(route)));
     }
 
     auto enumerate_interfaces(const InterfaceInfoFlags flags) noexcept// NOLINT
@@ -121,29 +122,30 @@ namespace kstd::platform {
 
         // Allocate socket for netlink communication and connect to Kernel
         const auto netlink_socket = std::unique_ptr<nl_sock, nl::SocketDeleter> {nl_socket_alloc()};
-        if (netlink_socket == nullptr) {
+        if(netlink_socket == nullptr) {
             return Error {"Unable to enumerate networks: Unable to allocate Netlink socket"s};
         }
 
-        if (nl_connect(netlink_socket.get(), NETLINK_ROUTE) != 0) {
+        if(nl_connect(netlink_socket.get(), NETLINK_ROUTE) != 0) {
             return Error {"Unable to enumerate networks: Unable to connect with Netlink socket"s};
         }
 
         // Allocate route cache
         const auto cache = std::unique_ptr<nl_cache, nl::CacheDeleter> {[&]() noexcept -> nl_cache* {
             nl_cache* cache = nullptr;
-            if (rtnl_route_alloc_cache(netlink_socket.get(), AF_UNSPEC, 0, &cache) != 0) {
+            if(rtnl_route_alloc_cache(netlink_socket.get(), AF_UNSPEC, 0, &cache) != 0) {
                 return nullptr;
             }
             return cache;
         }()};
-        if (cache == nullptr) {
+        if(cache == nullptr) {
             return Error {"Unable to enumerate networks: Unable to allocate and receive routing table!"s};
         }
 
         // Enumerate route cache
         std::vector<GatewayAddress> all_gateway_addresses {};
-        nl_cache_foreach(cache.get(), netlink_gateway_enum_callback, static_cast<void*>(&all_gateway_addresses));// NOLINT
+        nl_cache_foreach(cache.get(), netlink_gateway_enum_callback,
+                         static_cast<void*>(&all_gateway_addresses));// NOLINT
 
         // Enumerate interfaces
         std::vector<NetworkInterface> interfaces {};
@@ -205,7 +207,8 @@ namespace kstd::platform {
 
                 // Add address to original interface if there is one. If not, add the address to the addrs set
                 if(original_interface.has_value()) {
-                    original_interface->_addresses.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
+                    original_interface->_addresses.insert(
+                            InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
                 }
                 else {
                     addrs.insert(InterfaceAddress {address, static_cast<AddressFamily>(addr_family), routing_scheme});
@@ -262,10 +265,11 @@ namespace kstd::platform {
                 }).map([](auto& value) -> InterfaceAddress {
                     return { value.address, static_cast<AddressFamily>(value.family), RoutingScheme::UNKNOWN };
                 }).collect<std::unordered_set>(streams::collectors::insert);
-                // clang-format off
+                // clang-format on
 
                 // Push new interface
-                interfaces.emplace_back(*index, if_path, description, addrs, gateway_addresses, speed, type, mtu);
+                interfaces.emplace_back(*index, if_path, description, std::move(addrs), std::move(gateway_addresses),
+                                        speed, type, mtu);
             }
         }
 

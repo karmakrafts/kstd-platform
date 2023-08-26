@@ -100,11 +100,12 @@ namespace kstd::platform {
 
             // If some adapter addresses are found, parse the address information
             std::unordered_set<InterfaceAddress> if_addrs {};
+            std::unordered_set<InterfaceAddress> gateway_addresses {};
             auto current_address_type = RoutingScheme::UNICAST;
             if(addresses) {
                 // Create function to map from Windows address construct to Interface address
                 const auto map_function = [&](auto& value) noexcept {
-                    Option<std::string> address {};
+                    std::string address {'\0'};
                     // Check if address family can be converted by the API
                     switch(value.Address.lpSockaddr->sa_family) {
                         case AF_INET:
@@ -143,6 +144,13 @@ namespace kstd::platform {
                 streams::stream(addresses->FirstAnycastAddress, KSTD_PTR_FIELD_FUNCTOR(Next))
                         .map(map_function)
                         .collect_into(if_addrs, streams::collectors::insert);
+
+                // Get gateway addresses
+                current_address_type = RoutingScheme::UNKNOWN;
+                streams::stream(addresses->FirstGatewayAddress, KSTD_PTR_FIELD_FUNCTOR(Next))
+                        .map(map_function)
+                        .collect_into(gateway_addresses, streams::collectors::insert);
+
             }
 
             const auto type = static_cast<InterfaceType>(row.dwType);
@@ -161,13 +169,15 @@ namespace kstd::platform {
 
             if_addrs.insert({mac_address, AddressFamily::MAC, RoutingScheme::UNKNOWN});
 
-            // Push interface (Speed from bits to megabytes)
+            // Get interface speed (Speed from bits to megabytes)
             Option<usize> speed = row.dwSpeed / 1024 / 1024;
             if(*speed == 0) {
                 speed = {};
             }
 
-            interfaces.insert({row.dwIndex, name, desc, std::move(if_addrs), speed, type, row.dwMtu});
+            // Push interface
+            interfaces.insert({row.dwIndex, name, desc, std::move(if_addrs), std::move(gateway_addresses), speed, type,
+                               row.dwMtu});
         }
 
         // Free information and return interfaces
