@@ -40,7 +40,7 @@ if (CMX_PLATFORM_LINUX)
             "/usr/local/include/libnl3")
 
     # Include libnl include directories
-    target_include_directories(kstd-platform-static PUBLIC ${LIBNL_INCLUDE_DIR})
+    target_include_directories(kstd-platform PUBLIC ${LIBNL_INCLUDE_DIR})
     target_include_directories(kstd-platform-static PUBLIC ${LIBNL_INCLUDE_DIR})
 
     # Link libraries
