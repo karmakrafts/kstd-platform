@@ -46,7 +46,6 @@ namespace kstd::platform {
             KSTD_DEFAULT_DELETER(SocketDeleter, nl_socket_free)
             KSTD_DEFAULT_DELETER(CacheDeleter, nl_cache_free)
             KSTD_DEFAULT_DELETER(NextHopDeleter, rtnl_route_nh_free)
-            KSTD_DEFAULT_DELETER(AddressDeleter, nl_addr_put)
         }// namespace nl
 
         [[nodiscard]] inline auto open_socket() noexcept -> Result<NativeSocketHandle> {

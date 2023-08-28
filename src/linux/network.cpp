@@ -84,19 +84,19 @@ namespace kstd::platform {
         }
 
         // Get gateway address if some address is found
-        auto gateway = std::unique_ptr<nl_addr, nl::AddressDeleter> {rtnl_route_nh_get_gateway(next_hop)};
+        const auto* gateway = rtnl_route_nh_get_gateway(next_hop);
         if(gateway == nullptr) {
             return;
         }
 
         std::array<char, INET6_ADDRSTRLEN> gateway_name_bytes {'\0'};
-        nl_addr2str(gateway.get(), gateway_name_bytes.data(), gateway_name_bytes.size());
+        nl_addr2str(gateway, gateway_name_bytes.data(), gateway_name_bytes.size());
 
         auto gateway_address = std::string {gateway_name_bytes.data()};
         gateway_address.resize(kstd::libc::get_string_length(gateway_address.c_str()));
 
         // Get interface index
-        auto interface_index = rtnl_route_nh_get_ifindex(next_hop);
+        const auto interface_index = rtnl_route_nh_get_ifindex(next_hop);
         if(interface_index <= 0) {
             return;
         }
