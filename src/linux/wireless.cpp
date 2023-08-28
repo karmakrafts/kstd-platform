@@ -24,41 +24,18 @@
 #include <iostream>
 
 namespace kstd::platform {
+    const std::array<u_char, 3> ms_oui {0x00, 0x50, 0xF2};
+    const std::array<u_char, 3> default_oui {0x00, 0x0F, 0xAC};
+    const std::array<u_char, 3> wfa_oui = {0x50, 0x6A, 0x9A};
+
+    // Information Element Identifiers (IEEE 802.11-2007, IEEE 802.11i)
+    constexpr u8 IEEE80211_INFORMATION_ELEMENT_SSID = 0x00;
+    constexpr u8 IEEE80211_INFORMATION_ELEMENT_RSN = 0x30;
+
     struct ScanResult {
         bool done;
         bool aborted;
     };
-
-    // NOLINTBEGIN
-    auto compute_ssid(unsigned char* ie, int ielen) noexcept -> std::string {
-        uint8_t len;
-        uint8_t* data;
-        std::string result {};
-
-        while(ielen >= 2 && ielen >= ie[1]) {
-            if(ie[0] == 0 && ie[1] >= 0 && ie[1] <= 32) {
-                len = ie[1];
-                data = reinterpret_cast<uint8_t*>(ie + 2);
-                for(usize i = 0; i < len; ++i) {
-                    if(isprint(data[i]) && data[i] != ' ' && data[i] != '\\') {
-                        result += data[i];
-                    }
-                    else if(data[i] == ' ' && (i != 0 && i != len - 1)) {
-                        result += ' ';
-                    }
-                    else {
-                        result += fmt::format("{0:x}", data[i]);
-                    }
-                }
-                break;
-            }
-            ielen -= ie[1] + 2;
-            ie += ie[1] + 2;
-        }
-
-        return result;
-    }
-    // NOLINTEND
 
     inline auto parse_mac_addr(unsigned char* mac_addr) -> std::string {
         std::string mac_addr_string {};
@@ -73,26 +50,26 @@ namespace kstd::platform {
         return mac_addr_string;
     }
 
-    int error_handler([[maybe_unused]] sockaddr_nl* nl_addr, nlmsgerr* error, void* arg) {
+    auto error_handler([[maybe_unused]] sockaddr_nl* nl_addr, nlmsgerr* error, void* arg) -> i32 {
         *static_cast<int*>(arg) = error->error;
         return NL_STOP;
     }
 
-    int finish_handler([[maybe_unused]] nl_msg* message, void* arg) {
+    auto finish_handler([[maybe_unused]] nl_msg* message, void* arg) -> i32 {
         *static_cast<int*>(arg) = 0;
         return NL_SKIP;
     }
 
-    int ack_handler([[maybe_unused]] nl_msg* message, void* arg) {
+    auto ack_handler([[maybe_unused]] nl_msg* message, void* arg) -> i32 {
         *static_cast<int*>(arg) = 1;
         return NL_STOP;
     }
 
-    int no_seq_check([[maybe_unused]] nl_msg* message, [[maybe_unused]] void* arg) {
+    auto no_seq_check([[maybe_unused]] nl_msg* message, [[maybe_unused]] void* arg) -> i32 {
         return NL_OK;
     }
 
-    int callback_handler(nl_msg* message, void* arg) {
+    auto callback_handler(nl_msg* message, void* arg) noexcept -> i32 {
         const auto* message_header = static_cast<genlmsghdr*>(nlmsg_data(nlmsg_hdr(message)));
         auto* result = static_cast<ScanResult*>(arg);
 
@@ -108,7 +85,22 @@ namespace kstd::platform {
         return NL_SKIP;
     }
 
-    int dump_callback(nl_msg* message, void* arg) {
+    auto read_cipher(const u8* data) -> Option<CipherAlgorithm> {
+        // Compare if the OUI (Organizationally Unique Identifier) is the default 00-0F-AC or 00-50-F2
+        if(libc::memcmp(data, ms_oui.data(), 3) == 0 || libc::memcmp(data, default_oui.data(), 3) == 0) {
+            // Return the type of cipher by id (3 and 8-255 reserved, 6 and 7 currently not supported by kstd-platform)
+            switch(data[3]) {
+                case 0: return {};
+                case 1: return CipherAlgorithm::WEP40;
+                case 2: return CipherAlgorithm::TKIP;
+                case 4: return CipherAlgorithm::CCMP;
+                case 5: return CipherAlgorithm::WEP104;
+                default: return CipherAlgorithm::NONE;// Unknown Cipher
+            }
+        }
+    }
+
+    auto dump_callback(nl_msg* message, void* arg) noexcept -> i32 {
         const auto* message_header = static_cast<genlmsghdr*>(nlmsg_data(nlmsg_hdr(message)));
         std::array<nla_policy, NL80211_BSS_MAX + 1> bss_policies {};
         bss_policies[NL80211_BSS_TSF] = {.type = NLA_U64};
@@ -142,16 +134,9 @@ namespace kstd::platform {
         }
 
         // BSSID or IE is missing, we can't parse
-        if(bss[NL80211_BSS_BSSID] == nullptr || bss[NL80211_BSS_INFORMATION_ELEMENTS] == nullptr) {
+        /*if(bss[NL80211_BSS_BSSID] == nullptr || bss[NL80211_BSS_INFORMATION_ELEMENTS] == nullptr) {
             return NL_SKIP;
-        }
-
-        // Get network SSID
-        Option<std::string> ssid = compute_ssid(static_cast<u_char*>(nla_data(bss[NL80211_BSS_INFORMATION_ELEMENTS])),
-                                                nla_len(bss[NL80211_BSS_INFORMATION_ELEMENTS]));
-        if(ssid->empty()) {
-            ssid = {};
-        }
+        }*/
 
         // Get signal strength
         bool signal_strength_unspec = false;
@@ -165,6 +150,51 @@ namespace kstd::platform {
             signal_strength_unspec = true;
         }
 
+        // Get length and ata of information elements
+        Option<std::string> ssid {};
+        if(bss[NL80211_BSS_INFORMATION_ELEMENTS] != nullptr) {
+            const usize data_length = nla_len(bss[NL80211_BSS_INFORMATION_ELEMENTS]);
+            const auto* information_elements = static_cast<u_char*>(nla_data(bss[NL80211_BSS_INFORMATION_ELEMENTS]));
+
+            // Iterate through the information elements by using some pointer arithmetic
+            for(usize offset = 0; offset < data_length; offset += information_elements[offset + 1] + 2) {
+                const auto* information_element = information_elements + offset;
+                usize element_offset = 2;// Base offset for skipping element type and element length
+
+                // Determine the type of the element and process the right code
+                switch(information_element[0]) {
+                    case IEEE80211_INFORMATION_ELEMENT_SSID: {
+                        // Convert the SSID to string if this is a SSID information element
+                        ssid = std::string {reinterpret_cast<const char*>(information_element + 2),
+                                            static_cast<usize>(information_element[1])};
+                        break;
+                    }
+                    case IEEE80211_INFORMATION_ELEMENT_RSN: {
+                        // Collect security information if this is a RSN information element
+                        element_offset += 2;// Skipping RSN version (Usually set to 1)
+
+                        // Determine group cipher of network
+                        const auto group_cipher = *read_cipher(&information_element[element_offset]);
+                        element_offset += 4; // Skip OUI and cipher identifier
+
+                        // Determine pairwise ciphers of network
+                        auto pairwise_ciphers = CipherAlgorithm::NONE;
+                        const auto pairwise_cipher_count = information_element[element_offset];
+                        for (int i = 0; i < pairwise_cipher_count; i++) {
+                            // Get pairwise cipher and if the cipher entry references to the group cipher, add the group
+                            // ciphers of the ciphers
+                            pairwise_ciphers |= read_cipher(&information_element[element_offset]).get_or(group_cipher);
+                            element_offset += 4; // Add the offset of a single entry to the cipher
+                        }
+
+                        break;
+                    }
+                    default: break; // Skip the current element if the type is unknown
+                }
+            }
+        }
+
+        // Push the interface
         auto* interfaces = static_cast<std::unordered_set<WifiNetwork>*>(arg);
         interfaces->insert(
                 WifiNetwork {ssid,

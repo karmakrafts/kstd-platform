@@ -42,11 +42,16 @@
 
 namespace kstd::platform {
 #ifdef PLATFORM_LINUX
-    namespace { namespace nl {
-        KSTD_DEFAULT_DELETER(MessageDeleter, nlmsg_free)
-        KSTD_DEFAULT_DELETER(CallbackDeleter, nl_cb_put)
-    }}// namespace ::nl
+    namespace {
+        namespace nl {
+            KSTD_DEFAULT_DELETER(MessageDeleter, nlmsg_free)
+            KSTD_DEFAULT_DELETER(CallbackDeleter, nl_cb_put)
+        }
+    }// namespace ::nl
 #endif
+
+    KSTD_BITFLAGS(u8, AuthAlgorithm, WPA = 0b0001, WPA2 = 0b0010, WPA3 = 0b0100, SHARED_KEY = 0b1000)// NOLINT
+    KSTD_BITFLAGS(u8, CipherAlgorithm, WEP40 = 0b0001, TKIP = 0b0010, CCMP = 0b0100, WEP104 = 0b1000)   // NOLINT
 
     class WifiBand {
         std::string _mac_address;
@@ -160,6 +165,48 @@ namespace kstd::platform {
             return !(*this == other);
         }
     };
+
+    [[nodiscard]] inline auto get_auth_algorithm_names(const AuthAlgorithm algorithm) noexcept
+            -> std::vector<std::string> {
+        std::vector<std::string> names {};
+        if((algorithm & AuthAlgorithm::SHARED_KEY) == AuthAlgorithm::SHARED_KEY) {
+            names.emplace_back("Shared Key");
+        }
+
+        if((algorithm & AuthAlgorithm::WPA) == AuthAlgorithm::WPA) {
+            names.emplace_back("WPA");
+        }
+
+        if((algorithm & AuthAlgorithm::WPA2) == AuthAlgorithm::WPA2) {
+            names.emplace_back("WPA2");
+        }
+
+        if((algorithm & AuthAlgorithm::WPA3) == AuthAlgorithm::WPA3) {
+            names.emplace_back("WPA3");
+        }
+        return names;
+    }
+
+    [[nodiscard]] inline auto get_cipher_algorithm_names(const CipherAlgorithm algorithm) noexcept
+            -> std::vector<std::string> {
+        std::vector<std::string> names {};
+        if((algorithm & CipherAlgorithm::TKIP) == CipherAlgorithm::TKIP) {
+            names.emplace_back("TKIP");
+        }
+
+        if((algorithm & CipherAlgorithm::CCMP) == CipherAlgorithm::CCMP) {
+            names.emplace_back("CCMP");
+        }
+
+        if((algorithm & CipherAlgorithm::WEP40) == CipherAlgorithm::WEP40) {
+            names.emplace_back("WEP40");
+        }
+
+        if((algorithm & CipherAlgorithm::WEP104) == CipherAlgorithm::WEP104) {
+            names.emplace_back("WEP104");
+        }
+        return names;
+    }
 
     /**
      * This function initializes a scan on the network interface, if the interface is wireless. After the scan, all

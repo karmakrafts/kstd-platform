@@ -9,6 +9,8 @@ cppcoreguidelines-*,
 -cppcoreguidelines-owning-memory,
 -cppcoreguidelines-use-default-member-init,
 -cppcoreguidelines-avoid-magic-numbers,
+-cppcoreguidelines-pro-type-reinterpret-cast,
+-cppcoreguidelines-pro-bounds-pointer-arithmetic,
 bugprone-*,
 -bugprone-assert-side-effect,
 -bugprone-assignment-in-if-condition
