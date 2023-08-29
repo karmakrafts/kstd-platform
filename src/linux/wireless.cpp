@@ -86,6 +86,7 @@ namespace kstd::platform {
     }
 
     auto read_cipher(const u8* data) -> Option<CipherAlgorithm> {
+
         // Compare if the OUI (Organizationally Unique Identifier) is the default 00-0F-AC or 00-50-F2
         if(libc::memcmp(data, ms_oui.data(), 3) == 0 || libc::memcmp(data, default_oui.data(), 3) == 0) {
             // Return the type of cipher by id (3 and 8-255 reserved, 6 and 7 currently not supported by kstd-platform)
@@ -95,7 +96,7 @@ namespace kstd::platform {
                 case 2: return CipherAlgorithm::TKIP;
                 case 4: return CipherAlgorithm::CCMP;
                 case 5: return CipherAlgorithm::WEP104;
-                default: return CipherAlgorithm::NONE;// Unknown Cipher
+                default: return CipherAlgorithm::NONE; // Unknown Cipher or reserved number
             }
         }
     }
@@ -175,21 +176,24 @@ namespace kstd::platform {
 
                         // Determine group cipher of network
                         const auto group_cipher = *read_cipher(&information_element[element_offset]);
-                        element_offset += 4; // Skip OUI and cipher identifier
+                        element_offset += 4;// Skip OUI and cipher identifier
 
                         // Determine pairwise ciphers of network
                         auto pairwise_ciphers = CipherAlgorithm::NONE;
-                        const auto pairwise_cipher_count = information_element[element_offset];
-                        for (int i = 0; i < pairwise_cipher_count; i++) {
+                        const auto pairwise_cipher_count =
+                                information_element[element_offset] | (information_element[element_offset + 1] << 8);
+                        element_offset += 2; // Skip Pairwise Cipher Count Field
+
+                        // Enumerate all pairwise ciphers
+                        for(int i = 0; i < pairwise_cipher_count; ++i) {
                             // Get pairwise cipher and if the cipher entry references to the group cipher, add the group
                             // ciphers of the ciphers
                             pairwise_ciphers |= read_cipher(&information_element[element_offset]).get_or(group_cipher);
-                            element_offset += 4; // Add the offset of a single entry to the cipher
+                            element_offset += 4;// Add the offset of a single cipher entry (OUI and Identifier)
                         }
-
                         break;
                     }
-                    default: break; // Skip the current element if the type is unknown
+                    default: break;// Skip the current element if the type is unknown
                 }
             }
         }
