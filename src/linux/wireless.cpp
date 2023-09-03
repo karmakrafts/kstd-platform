@@ -24,13 +24,9 @@
 #include <iostream>
 
 namespace kstd::platform {
-    const std::array<u_char, 3> ms_oui {0x00, 0x50, 0xF2};
-    const std::array<u_char, 3> default_oui {0x00, 0x0F, 0xAC};
-    const std::array<u_char, 3> wfa_oui = {0x50, 0x6A, 0x9A};
 
-    // Information Element Identifiers (IEEE 802.11-2007, IEEE 802.11i)
+    // Information Element Identifiers (IEEE 802.11-2007)
     constexpr u8 IEEE80211_INFORMATION_ELEMENT_SSID = 0x00;
-    constexpr u8 IEEE80211_INFORMATION_ELEMENT_RSN = 0x30;
 
     struct ScanResult {
         bool done;
@@ -83,22 +79,6 @@ namespace kstd::platform {
         }
 
         return NL_SKIP;
-    }
-
-    auto read_cipher(const u8* data) -> Option<CipherAlgorithm> {
-
-        // Compare if the OUI (Organizationally Unique Identifier) is the default 00-0F-AC or 00-50-F2
-        if(libc::memcmp(data, ms_oui.data(), 3) == 0 || libc::memcmp(data, default_oui.data(), 3) == 0) {
-            // Return the type of cipher by id (3 and 8-255 reserved, 6 and 7 currently not supported by kstd-platform)
-            switch(data[3]) {
-                case 0: return {};
-                case 1: return CipherAlgorithm::WEP40;
-                case 2: return CipherAlgorithm::TKIP;
-                case 4: return CipherAlgorithm::CCMP;
-                case 5: return CipherAlgorithm::WEP104;
-                default: return CipherAlgorithm::NONE; // Unknown Cipher or reserved number
-            }
-        }
     }
 
     auto dump_callback(nl_msg* message, void* arg) noexcept -> i32 {
@@ -168,29 +148,6 @@ namespace kstd::platform {
                         // Convert the SSID to string if this is a SSID information element
                         ssid = std::string {reinterpret_cast<const char*>(information_element + 2),
                                             static_cast<usize>(information_element[1])};
-                        break;
-                    }
-                    case IEEE80211_INFORMATION_ELEMENT_RSN: {
-                        // Collect security information if this is a RSN information element
-                        element_offset += 2;// Skipping RSN version (Usually set to 1)
-
-                        // Determine group cipher of network
-                        const auto group_cipher = *read_cipher(&information_element[element_offset]);
-                        element_offset += 4;// Skip OUI and cipher identifier
-
-                        // Determine pairwise ciphers of network
-                        auto pairwise_ciphers = CipherAlgorithm::NONE;
-                        const auto pairwise_cipher_count =
-                                information_element[element_offset] | (information_element[element_offset + 1] << 8);
-                        element_offset += 2; // Skip Pairwise Cipher Count Field
-
-                        // Enumerate all pairwise ciphers
-                        for(int i = 0; i < pairwise_cipher_count; ++i) {
-                            // Get pairwise cipher and if the cipher entry references to the group cipher, add the group
-                            // ciphers of the ciphers
-                            pairwise_ciphers |= read_cipher(&information_element[element_offset]).get_or(group_cipher);
-                            element_offset += 4;// Add the offset of a single cipher entry (OUI and Identifier)
-                        }
                         break;
                     }
                     default: break;// Skip the current element if the type is unknown
